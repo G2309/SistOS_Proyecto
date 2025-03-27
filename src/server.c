@@ -13,6 +13,20 @@
 
 ServerState server_state;
 
+// Funcion del protocolo para envio de mensajes (bin)
+void sendBinaryMessage(struct lws *wsi, uint8_t type, const std::vector<uint8_t>& data) {
+    std::vector<uint8_t> buffer;
+    buffer.push_back(type);
+    buffer.push_back(data.size());
+    buffer.insert(buffer.end(), data.begin(), data.end());
+
+    unsigned char out[BUFFER_SIZE];
+    int n = lws_write(wsi, out + LWS_PRE, buffer.size(), LWS_WRITE_BINARY);
+    if (n < 0) {
+        std::cerr << "Error al enviar mensaje binario.\n";
+    }
+}
+
 static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason,
                               void *user, void *in, size_t len) {
     switch (reason) {
