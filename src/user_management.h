@@ -5,6 +5,7 @@
 #define MAX_USERS 100
 #define MAX_USERNAME 50
 #define MAX_IP_LENGTH 50
+#define TIMEOUT_SECONDS 60
 
 // Enum para estados de usuario
 typedef enum {
@@ -19,6 +20,7 @@ typedef struct {
     char ip_address[MAX_IP_LENGTH];
     int socket;
     UserStatus status;
+	time_t last_active;
 } User;
 
 // Estructura global de estado del servidor
