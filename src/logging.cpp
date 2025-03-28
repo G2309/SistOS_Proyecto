@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include "logging.h"
 
-#define LOG_FILE "server.log"
+#define LOG_FILE "logs/server.log"
 static FILE* log_file = NULL;
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
