@@ -9,9 +9,9 @@ void handleReceivedMessage(struct lws *wsi, uint8_t messageType, const std::vect
     switch (messageType) {
         case 1: { // Registro de usuario
             std::string username(data.begin(), data.end());
-            if (registerUser(wsi, username.c_str()) == 0) {
+            if (register_user(wsi, username.c_str()) == 0) {
                 std::cout << "Usuario registrado: " << username << "\n";
-                logInfo("Usuario registrado exitosamente");
+                //logInfo("Usuario registrado exitosamente");
             } else {
                 std::cout << "Error al registrar usuario: " << username << "\n";
             }
@@ -24,6 +24,6 @@ void handleReceivedMessage(struct lws *wsi, uint8_t messageType, const std::vect
 
 void handleClientDisconnection(struct lws *wsi) {
     std::cout << "Cliente desconectado.\n";
-    removeUser(wsi);  // Asumiendo que tienes una función así en user_management
+    remove_user(wsi);  // Asumiendo que tienes una función así en user_management
 }
 
