@@ -4,8 +4,9 @@
 #include <libwebsockets.h>
 #include <stdint.h>
 #include <vector>
+#include "user_management.h"
 
-void handleReceivedMessage(struct lws *wsi, uint8_t messageType, const std::vector<uint8_t>& data);
-void handleClientDisconnection(struct lws *wsi);
+void handle_received_message(ServerState *state, struct lws *wsi, uint8_t message_type, uint8_t *data, size_t len);
+void handle_client_disconnection(ServerState *state, struct lws *wsi);
 
 #endif

@@ -6,6 +6,7 @@
 #include "user_management.h"
 #include "logging.h"
 #include "handlers.h"
+#include <iostream>
 
 #define MAX_PAYLOAD 1024
 #define BUFFER_SIZE 2048
@@ -40,7 +41,7 @@ static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason,
             uint8_t message_type = ((uint8_t *)in)[0];
             uint8_t data_size = ((uint8_t *)in)[1];
 
-            if (len < 2 + data_size) {
+			if (len < static_cast<size_t>(2 + data_size)) {
                 log_event("Protocol Error", "Tamaño de mensaje inválido.");
                 return 1; // Cerramos conexión
             }

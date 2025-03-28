@@ -3,6 +3,9 @@
 #include <string.h>
 #include <pthread.h>
 #include "user_management.h"
+#include "logging.h"
+#include <unistd.h>
+#include <ctime>
 
 void init_server_state(ServerState* state) {
     state->user_count = 0;
@@ -15,8 +18,8 @@ int login_user(ServerState* state, const char* username, const char* password, i
         if (strcmp(state->users[i].username, username) == 0 &&
             strcmp(state->users[i].password, password) == 0) {
             state->users[i].socket_fd = socket_fd;
-            state->users[i].status = STATUS_CONNECTED;
-            state->users[i].last_active = time(NULL);
+            state->users[i].status = ACTIVO; 
+			state->users[i].last_active = time(NULL);
 
             pthread_mutex_unlock(&state->user_mutex);
             char msg[128];
@@ -32,13 +35,11 @@ int login_user(ServerState* state, const char* username, const char* password, i
 
 
 void logout_user(ServerState *state, const char *username) {
-    pthread_mutex_lock(&state->mutex);
+    pthread_mutex_lock(&state->user_mutex);
 
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
-            state->users[i].status = STATUS_DISCONNECTED;
-            state->users[i].socket_fd = -1;
-
+            state->users[i].status = INACTIVO; 
             char log_msg[128];
             snprintf(log_msg, sizeof(log_msg), "Usuario %s se desconectó", username);
             log_event("Logout", log_msg);
@@ -46,22 +47,22 @@ void logout_user(ServerState *state, const char *username) {
         }
     }
 
-    pthread_mutex_unlock(&state->mutex);
+    pthread_mutex_unlock(&state->user_mutex);
 }
 
 int register_user(ServerState *state, const char *username, const char *password, int socket_fd) {
-    pthread_mutex_lock(&state->mutex);
+    pthread_mutex_lock(&state->user_mutex);
 
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
-            pthread_mutex_unlock(&state->mutex);
+            pthread_mutex_unlock(&state->user_mutex);
             log_event("Register Failed", "Usuario ya existe");
             return -1;  // usuario ya existe
         }
     }
 
     if (state->user_count >= MAX_USERS) {
-        pthread_mutex_unlock(&state->mutex);
+        pthread_mutex_unlock(&state->user_mutex);
         log_event("Register Failed", "Máximo número de usuarios alcanzado");
         return -2;
     }
@@ -70,10 +71,10 @@ int register_user(ServerState *state, const char *username, const char *password
     new_user->user_id = state->user_count;
     strncpy(new_user->username, username, USERNAME_MAX_LEN);
     strncpy(new_user->password, password, PASSWORD_MAX_LEN);
-    new_user->status = STATUS_CONNECTED;
+    new_user->status = ACTIVO;
     new_user->socket_fd = socket_fd;
 
-    pthread_mutex_unlock(&state->mutex);
+    pthread_mutex_unlock(&state->user_mutex);
 
     char log_msg[128];
     snprintf(log_msg, sizeof(log_msg), "Usuario %s registrado con ID %d", username, new_user->user_id);
@@ -143,7 +144,7 @@ void list_users(ServerState* state, char* buffer, size_t buffer_size) {
 }
 
 int change_user_status(ServerState *state, const char *username, UserStatus new_status) {
-    pthread_mutex_lock(&state->mutex);
+    pthread_mutex_lock(&state->user_mutex);
 
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
@@ -153,12 +154,12 @@ int change_user_status(ServerState *state, const char *username, UserStatus new_
             snprintf(log_msg, sizeof(log_msg), "Usuario %s cambió estado a %d", username, new_status);
             log_event("Status Change", log_msg);
 
-            pthread_mutex_unlock(&state->mutex);
+            pthread_mutex_unlock(&state->user_mutex);
             return 0;
         }
     }
 
-    pthread_mutex_unlock(&state->mutex);
+    pthread_mutex_unlock(&state->user_mutex);
     log_event("Status Change Failed", "Usuario no encontrado");
     return -1;
 }
@@ -186,7 +187,7 @@ void* monitor_inactivity(void* arg) {
 
 		}
 		pthread_mutex_unlock(&state->user_mutex);
-		sleep(5)
+		sleep(5);
 	}
 	return NULL;
 }

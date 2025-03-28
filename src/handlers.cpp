@@ -3,27 +3,28 @@
 #include "logging.h"
 #include "sockets.h"
 #include <iostream>
+#include <string>
 
-void handleReceivedMessage(struct lws *wsi, uint8_t messageType, const std::vector<uint8_t>& data) {
-    // Aquí procesas los diferentes tipos de mensajes (registro, chat, estado, etc.)
-    switch (messageType) {
+// ¡Ahora usamos ServerState y raw data como espera server.cpp!
+void handle_received_message(ServerState *state, struct lws *wsi, uint8_t message_type, uint8_t *data, size_t len) {
+    switch (message_type) {
         case 1: { // Registro de usuario
-            std::string username(data.begin(), data.end());
-            if (register_user(wsi, username.c_str()) == 0) {
+            std::string username(reinterpret_cast<char*>(data), len);
+
+            // ⚠️ Como no estás manejando password aún, lo pasamos vacío y -1 como socket_fd
+            if (register_user(state, username.c_str(), "", -1) == 0) {
                 std::cout << "Usuario registrado: " << username << "\n";
-                //logInfo("Usuario registrado exitosamente");
             } else {
                 std::cout << "Error al registrar usuario: " << username << "\n";
             }
             break;
         }
 
-        // Otros tipos de mensajes aquí...
     }
 }
 
-void handleClientDisconnection(struct lws *wsi) {
+void handle_client_disconnection(ServerState *state, struct lws *wsi) {
     std::cout << "Cliente desconectado.\n";
-    remove_user(wsi);  // Asumiendo que tienes una función así en user_management
+
 }
 
