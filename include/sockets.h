@@ -7,7 +7,7 @@
 
 #define BUFFER_SIZE 1024
 
-void startServer(int port);
+void start_server(int port);
 void sendBinaryMessage(struct lws *wsi, uint8_t type, const std::vector<uint8_t>& data);
 
 #endif

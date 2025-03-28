@@ -2,7 +2,7 @@
 
 int main() {
     int port = 9000;
-    startServer(port);
+    start_server(port);
     return 0;
 }
 

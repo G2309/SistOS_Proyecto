@@ -1,8 +1,10 @@
 CXX = g++
-CXXFLAGS = -Wall -std=c++17
+CXXFLAGS = -Wall -std=c++17 -Iinclude
 LDFLAGS = -lwebsockets
+
 SRC_DIR = src
 BUILD_DIR = build
+INCLUDE_DIR = include
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
@@ -12,6 +14,7 @@ TARGET = chat_server
 
 all: $(TARGET)
 
+# Compilar objetos en build/
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -24,3 +27,4 @@ run: $(TARGET)
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
+

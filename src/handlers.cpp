@@ -5,13 +5,12 @@
 #include <iostream>
 #include <string>
 
-// ¡Ahora usamos ServerState y raw data como espera server.cpp!
 void handle_received_message(ServerState *state, struct lws *wsi, uint8_t message_type, uint8_t *data, size_t len) {
     switch (message_type) {
-        case 1: { // Registro de usuario
+		// Registro de usuario
+        case 1: { 
             std::string username(reinterpret_cast<char*>(data), len);
-
-            // ⚠️ Como no estás manejando password aún, lo pasamos vacío y -1 como socket_fd
+			// Recordar agregar luego el manejo de contraseña :p
             if (register_user(state, username.c_str(), "", -1) == 0) {
                 std::cout << "Usuario registrado: " << username << "\n";
             } else {
