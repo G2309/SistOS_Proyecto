@@ -1,21 +1,26 @@
 #ifndef MENSAJES_H
 #define MENSAJES_H
 
-#include <string>
 #include "Conexion.h"
+#include <vector>
+#include <string>
 
 class Mensajes {
 private:
-    Conexion* conexion;  // Referencia a la conexión activa
+    Conexion* conexion;
+
 public:
     Mensajes(Conexion* conn);
 
-    bool enviarMensaje(const std::string& mensaje);
+    bool enviarMensaje(const std::string& mensaje);  // ← Se agregó esta línea
     bool enviarPrivado(const std::string& destinatario, const std::string& mensaje);
     bool cambiarEstado(const std::string& estado);
-    std::string recibirMensaje();
+    void solicitarListaUsuarios();
+    void solicitarInfoUsuario(const std::string& nombre);
 
-    std::string formatearMensaje(const std::string& tipo, const std::string& contenido);
+private:
+    std::vector<uint8_t> formatearMensaje(uint8_t tipo, const std::vector<uint8_t>& contenido);
 };
 
-#endif
+#endif  // MENSAJES_H
+
