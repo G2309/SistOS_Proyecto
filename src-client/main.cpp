@@ -21,7 +21,8 @@ void manejarEntrada(Conexion& conexion, Mensajes& mensajes) {
 }
 
 int main() {
-    std::string ip = "3.137.199.200";
+    //std::string ip = "3.137.199.200";
+    std::string ip = "127.0.0.1";
     int puerto = 9000;
     std::string username;
     
