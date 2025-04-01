@@ -1,3 +1,15 @@
 [Fri Mar 28 17:05:22 2025] Server Start: Servidor WebSockets iniciado.
 [Tue Apr  1 00:22:29 2025] Server Start: Servidor WebSockets iniciado.
 [Tue Apr  1 00:23:06 2025] Server Start: Servidor WebSockets iniciado.
+[Tue Apr  1 00:27:01 2025] Connection: Nueva conexión WebSocket establecida.
+[Tue Apr  1 00:27:09 2025] Protocol Error: Tamaño de mensaje inválido.
+[Tue Apr  1 00:28:47 2025] Connection: Nueva conexión WebSocket establecida.
+[Tue Apr  1 00:33:03 2025] Connection: Nueva conexión WebSocket establecida.
+[Tue Apr  1 01:16:40 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 01:16:40 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 01:16:47 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 01:16:47 2025] Server Error: No se pudo crear contexto de WebSockets
+[Tue Apr  1 01:16:57 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 01:16:57 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 01:25:00 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 01:25:00 2025] Connection Error: No se proporcionó nombre de usuario

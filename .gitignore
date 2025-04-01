@@ -1,10 +1,6 @@
 *.out
-<<<<<<< HEAD
 chat_server
 chat_client
 build
-=======
-build
 *.log
-chat_server
->>>>>>> server
+logs

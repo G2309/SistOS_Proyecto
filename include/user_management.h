@@ -2,27 +2,29 @@
 #define USER_MANAGEMENT_H
 
 #include <pthread.h>
-#include <arpa/inet.h>
+#include <libwebsockets.h>
 
 #define MAX_USERS 100
-#define USERNAME_MAX_LEN 32
+#define USERNAME_MAX_LEN 16
 #define PASSWORD_MAX_LEN 32
-#define TIMEOUT_SECONDS 60
+#define TIMEOUT_SECONDS 300 // 5 minutos de inactividad
 
 typedef enum {
-	ACTIVO,
-	OCUPADO,
-	INACTIVO
+    DESACTIVADO = 0,
+    ACTIVO = 1,
+    OCUPADO = 2,
+    INACTIVO = 3
 } UserStatus;
 
 typedef struct {
     int user_id;
-    char username[USERNAME_MAX_LEN];
-    char password[PASSWORD_MAX_LEN];
-	char ip_address[INET_ADDRSTRLEN];
-	time_t last_active;
+    char username[USERNAME_MAX_LEN + 1];
+    char password[PASSWORD_MAX_LEN + 1];
+    char ip_address[16]; 
     UserStatus status;
-    int socket_fd;
+    struct lws *wsi;  
+    time_t last_active;
+    int needs_status_notification; // Flag para notificar cambios de estado
 } User;
 
 typedef struct {
@@ -31,17 +33,14 @@ typedef struct {
     pthread_mutex_t user_mutex;
 } ServerState;
 
-int register_user(ServerState *state, const char *username, const char *password, int socket_fd);
-User *find_user_by_name(ServerState *state, const char *username);
-int change_user_status(ServerState *state, const char *username, UserStatus new_status);
-UserStatus get_user_status(ServerState *state, const char *username);
-int get_all_users(ServerState *state, User *buffer, int max_count);
-void logout_user(ServerState *state, const char *username);
-int login_user(ServerState *state, const char *username, const char *password, int socket_fd);
-int unregister_user(ServerState *state, const char *username);
-void list_users(ServerState *state, char *buffer, size_t buffer_size);
-void* monitor_inactivity(void *arg);
-
+void init_server_state(ServerState* state);
+int login_user(ServerState* state, const char* username, const char* password, struct lws *wsi);
+void logout_user(ServerState* state, const char* username);
+int register_user(ServerState* state, const char* username, const char* password, struct lws *wsi);
+int unregister_user(ServerState* state, const char* username);
+User* find_user_by_name(ServerState* state, const char* username);
+void list_users(ServerState* state, char* buffer, size_t buffer_size);
+int change_user_status(ServerState* state, const char* username, UserStatus new_status);
+void* monitor_inactivity(void* arg);
 
 #endif
-

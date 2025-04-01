@@ -14,59 +14,84 @@
 
 ServerState server_state;
 
-// Funcion del protocolo para envio de mensajes (bin)
-void sendBinaryMessage(struct lws *wsi, uint8_t type, const std::vector<uint8_t>& data) {
-    std::vector<uint8_t> buffer;
-    buffer.push_back(type);
-    buffer.push_back(data.size());
-    buffer.insert(buffer.end(), data.begin(), data.end());
-
-    unsigned char out[BUFFER_SIZE];
-    int n = lws_write(wsi, out + LWS_PRE, buffer.size(), LWS_WRITE_BINARY);
-    if (n < 0) {
-        std::cerr << "Error al enviar mensaje binario.\n";
-    }
-}
-
 static int websocket_callback(struct lws *wsi, enum lws_callback_reasons reason,
-                              void *user, void *in, size_t len) {
+                             void *user, void *in, size_t len) {
     switch (reason) {
-        case LWS_CALLBACK_ESTABLISHED:
-            log_event("Connection", "Nueva conexión WebSocket establecida.");
+        case LWS_CALLBACK_ESTABLISHED: {
+            log_event("Connection", "Nueva conexión WebSocket establecida");
+            
+            // Obtener el nombre de usuario desde la URL
+            char buf[256];
+            lws_hdr_copy(wsi, buf, sizeof(buf), WSI_TOKEN_GET_URI);
+            
+            // Extraer el nombre de usuario de la URL (formato: /?name=username)
+            char *name_param = strstr(buf, "?name=");
+            if (!name_param) {
+                log_event("Connection Error", "No se proporcionó nombre de usuario");
+                return -1; // Cerrar conexión
+            }
+            
+            name_param += 6; // Saltar ?name=
+            
+            // Verificar que el nombre no sea vacío
+            if (!*name_param) {
+                log_event("Connection Error", "Nombre de usuario vacío");
+                return -1; // Cerrar conexión
+            }
+            
+            // Validar el nombre de usuario
+            regex_t regex;
+            int reti = regcomp(&regex, "^[A-Za-z0-9_-]{3,16}$", REG_EXTENDED);
+            if (reti || regexec(&regex, name_param, 0, NULL, 0) != 0 || strcmp(name_param, "~") == 0) {
+                log_event("Validation", "Nombre de usuario inválido");
+                regfree(&regex);
+                return -1; // Cerrar conexión
+            }
+            regfree(&regex);
+            
+            // Intentar registrar/conectar al usuario
+            int result = register_user(&server_state, name_param, "", wsi);
+            
+            if (result < 0) {
+                if (result == -1) {
+                    log_event("Connection Error", "Usuario ya conectado");
+                } else if (result == -2) {
+                    log_event("Connection Error", "Límite de usuarios alcanzado");
+                } else if (result == -3) {
+                    log_event("Connection Error", "Nombre de usuario reservado");
+                }
+                return -1; // Cerrar conexión
+            }
+            
             break;
+        }
 
         case LWS_CALLBACK_RECEIVE: {
-            if (len < 2) break;
+            if (len < 1) break;
 
             uint8_t message_type = ((uint8_t *)in)[0];
+            
+            // Para mensajes sin datos adicionales (como tipo 1 - listar usuarios)
+            if (len == 1) {
+                handle_received_message(&server_state, wsi, message_type, NULL, 0);
+                break;
+            }
+            
+            // Para mensajes con datos adicionales
+            if (len < 2) {
+                log_event("Protocol Error", "Tamaño de mensaje inválido");
+                break;
+            }
+            
             uint8_t data_size = ((uint8_t *)in)[1];
-
-			if (len < static_cast<size_t>(2 + data_size)) {
-                log_event("Protocol Error", "Tamaño de mensaje inválido.");
+            
+            if (len < static_cast<size_t>(2 + data_size)) {
+                log_event("Protocol Error", "Tamaño de mensaje inválido");
                 return 1; // Cerramos conexión
             }
 
             uint8_t *payload = (uint8_t *)in + 2;
-
-            // Validación de nombre de usuario si es tipo 1 (registro)
-            if (message_type == 1) {
-                char username[USERNAME_MAX_LEN];
-                strncpy(username, (char *)payload, data_size);
-                username[data_size] = '\0';
-
-                regex_t regex;
-                int reti = regcomp(&regex, "^[A-Za-z0-9_-]{3,16}$", REG_EXTENDED);
-                if (reti || regexec(&regex, username, 0, NULL, 0) != 0 || strcmp(username, "~") == 0) {
-                    log_event("Validation", "Nombre de usuario inválido.");
-                    uint8_t error_code = 1;
-                    uint8_t response[] = {50, 1, error_code};
-                    lws_write(wsi, response, sizeof(response), LWS_WRITE_BINARY);
-                    regfree(&regex);
-                    return 1;
-                }
-                regfree(&regex);
-            }
-
+            
             handle_received_message(&server_state, wsi, message_type, payload, data_size);
             break;
         }
@@ -103,11 +128,12 @@ void start_server(int port) {
 
     struct lws_context *context = lws_create_context(&info);
     if (!context) {
-        log_event("Server Error", "No se pudo crear contexto de WebSockets.");
+        log_event("Server Error", "No se pudo crear contexto de WebSockets");
         return;
     }
 
-    log_event("Server Start", "Servidor WebSockets iniciado.");
+    log_event("Server Start", "Servidor WebSockets iniciado en puerto 9000");
+    std::cout << "Servidor WebSockets iniciado en puerto " << port << "\n";
 
     while (1) {
         lws_service(context, 50);
@@ -115,4 +141,3 @@ void start_server(int port) {
 
     lws_context_destroy(context);
 }
-

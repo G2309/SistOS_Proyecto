@@ -12,14 +12,14 @@ void init_server_state(ServerState* state) {
     pthread_mutex_init(&state->user_mutex, NULL);
 }
 
-int login_user(ServerState* state, const char* username, const char* password, int socket_fd) {
+int login_user(ServerState* state, const char* username, const char* password, struct lws *wsi) {
     pthread_mutex_lock(&state->user_mutex);
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0 &&
             strcmp(state->users[i].password, password) == 0) {
-            state->users[i].socket_fd = socket_fd;
+            state->users[i].wsi = wsi;
             state->users[i].status = ACTIVO; 
-			state->users[i].last_active = time(NULL);
+            state->users[i].last_active = time(NULL);
 
             pthread_mutex_unlock(&state->user_mutex);
             char msg[128];
@@ -33,13 +33,12 @@ int login_user(ServerState* state, const char* username, const char* password, i
     return -1;
 }
 
-
 void logout_user(ServerState *state, const char *username) {
     pthread_mutex_lock(&state->user_mutex);
 
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
-            state->users[i].status = INACTIVO; 
+            state->users[i].status = DESACTIVADO; 
             char log_msg[128];
             snprintf(log_msg, sizeof(log_msg), "Usuario %s se desconectó", username);
             log_event("Logout", log_msg);
@@ -50,29 +49,50 @@ void logout_user(ServerState *state, const char *username) {
     pthread_mutex_unlock(&state->user_mutex);
 }
 
-int register_user(ServerState *state, const char *username, const char *password, int socket_fd) {
+int register_user(ServerState *state, const char *username, const char *password, struct lws *wsi) {
     pthread_mutex_lock(&state->user_mutex);
+
+    // Verificar que el nombre no sea "~" (reservado para chat general)
+    if (strcmp(username, "~") == 0) {
+        pthread_mutex_unlock(&state->user_mutex);
+        log_event("Register Failed", "Nombre de usuario reservado");
+        return -3;  // nombre reservado
+    }
 
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
+            // Si el usuario existe pero está desconectado, actualizamos su estado
+            if (state->users[i].status == DESACTIVADO) {
+                state->users[i].status = ACTIVO;
+                state->users[i].wsi = wsi;
+                state->users[i].last_active = time(NULL);
+                pthread_mutex_unlock(&state->user_mutex);
+                
+                char log_msg[128];
+                snprintf(log_msg, sizeof(log_msg), "Usuario %s reconectado", username);
+                log_event("Reconnect", log_msg);
+                return 1;  // reconexión exitosa
+            }
+            
             pthread_mutex_unlock(&state->user_mutex);
-            log_event("Register Failed", "Usuario ya existe");
-            return -1;  // usuario ya existe
+            log_event("Register Failed", "Usuario ya existe y está activo");
+            return -1;  // usuario ya existe y está activo
         }
     }
 
     if (state->user_count >= MAX_USERS) {
         pthread_mutex_unlock(&state->user_mutex);
         log_event("Register Failed", "Máximo número de usuarios alcanzado");
-        return -2;
+        return -2;  // máximo de usuarios alcanzado
     }
 
-    User *new_user = &state->users[state->user_count++];
+	User *new_user = &state->users[state->user_count++];
     new_user->user_id = state->user_count;
     strncpy(new_user->username, username, USERNAME_MAX_LEN);
     strncpy(new_user->password, password, PASSWORD_MAX_LEN);
     new_user->status = ACTIVO;
-    new_user->socket_fd = socket_fd;
+    new_user->wsi = wsi;  // Usar wsi en lugar de socket_fd
+    new_user->last_active = time(NULL);
 
     pthread_mutex_unlock(&state->user_mutex);
 
@@ -80,9 +100,8 @@ int register_user(ServerState *state, const char *username, const char *password
     snprintf(log_msg, sizeof(log_msg), "Usuario %s registrado con ID %d", username, new_user->user_id);
     log_event("Register Success", log_msg);
 
-    return 0;
+    return 0;  // registro exitoso
 }
-
 
 int unregister_user(ServerState* state, const char* username) {
     pthread_mutex_lock(&state->user_mutex);
@@ -129,13 +148,13 @@ void list_users(ServerState* state, char* buffer, size_t buffer_size) {
             case ACTIVO: status_str = "ACTIVO"; break;
             case OCUPADO: status_str = "OCUPADO"; break;
             case INACTIVO: status_str = "INACTIVO"; break;
+            case DESACTIVADO: status_str = "DESACTIVADO"; break;
             default: status_str = "DESCONOCIDO";
         }
         
-        snprintf(user_info, sizeof(user_info), "Usuario: %s, IP: %s, Status: %s\n", 
-                 state->users[i].username, 
-                 state->users[i].ip_address, 
-                 status_str);
+        snprintf(user_info, sizeof(user_info), "Usuario: %s, Status: %s\n", 
+                state->users[i].username, 
+                status_str);
         
         strncat(buffer, user_info, buffer_size - strlen(buffer) - 1);
     }
@@ -149,6 +168,9 @@ int change_user_status(ServerState *state, const char *username, UserStatus new_
     for (int i = 0; i < state->user_count; i++) {
         if (strcmp(state->users[i].username, username) == 0) {
             state->users[i].status = new_status;
+            if (new_status == ACTIVO) {
+                state->users[i].last_active = time(NULL);
+            }
 
             char log_msg[128];
             snprintf(log_msg, sizeof(log_msg), "Usuario %s cambió estado a %d", username, new_status);
@@ -164,30 +186,52 @@ int change_user_status(ServerState *state, const char *username, UserStatus new_
     return -1;
 }
 
-
-// Para cuando se haga el main, recordar iniciar el hilo de monitoreo:
-// <pthread_t monitor_thread;
-// pthread_create(&monitor_thread, NULL, monitor_inactivity, &server_state);
-
 void* monitor_inactivity(void* arg) {
-	ServerState* state = (ServerState*)arg;
+    ServerState* state = (ServerState*)arg;
 
-	while(1) {
-		pthread_mutex_lock(&state->user_mutex);
-		time_t now = time(NULL);
+    while(1) {
+        pthread_mutex_lock(&state->user_mutex);
+        time_t now = time(NULL);
 
-		for (int i=0; i < state->user_count; i++){
-			double diff = difftime(now, state->users[i].last_active);
+        for (int i=0; i < state->user_count; i++){
+            if (state->users[i].status == ACTIVO) {
+                double diff = difftime(now, state->users[i].last_active);
 
-			if (state->users[i].status == ACTIVO && diff >= TIMEOUT_SECONDS) {
-				state->users[i].status = INACTIVO;
-				// Para debuggear
-				printf("Usuario %s está INACTIVO (%.0f segundos sin actividad)\n", state->users[i].username, diff);
-			}
-
-		}
-		pthread_mutex_unlock(&state->user_mutex);
-		sleep(5);
-	}
-	return NULL;
+                if (diff >= TIMEOUT_SECONDS) {
+                    state->users[i].status = INACTIVO;
+                    
+                    // Para debuggear
+                    printf("Usuario %s está INACTIVO (%.0f segundos sin actividad)\n", 
+                           state->users[i].username, diff);
+                    
+                    // Notificar a todos sobre el cambio de estado
+                    // Nota: No podemos llamar a broadcast_message aquí porque tenemos el mutex bloqueado
+                    // y podría causar un deadlock. En su lugar, marcamos que se necesita notificar.
+                    state->users[i].needs_status_notification = 1;
+                }
+            }
+        }
+        
+        // Guardar los usuarios que necesitan notificación
+        char usernames_to_notify[MAX_USERS][USERNAME_MAX_LEN];
+        int notify_count = 0;
+        
+        for (int i=0; i < state->user_count; i++) {
+            if (state->users[i].needs_status_notification) {
+                strncpy(usernames_to_notify[notify_count], state->users[i].username, USERNAME_MAX_LEN);
+                state->users[i].needs_status_notification = 0;
+                notify_count++;
+            }
+        }
+        
+        pthread_mutex_unlock(&state->user_mutex);
+        
+        // Ahora podemos notificar sin tener el mutex bloqueado
+        // En una implementación real, llamaríamos a una función para notificar
+        // el cambio de estado a todos los clientes
+        
+        // Dormir durante 5 segundos antes de la próxima comprobación
+        sleep(5);
+    }
+    return NULL;
 }

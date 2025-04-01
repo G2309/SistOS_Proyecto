@@ -1,34 +1,36 @@
 #ifndef CONEXION_H
 #define CONEXION_H
 
-#include <libwebsockets.h>
 #include <string>
 #include <thread>
-#include <atomic>
 #include <vector>
+#include <libwebsockets.h>
 
 class Conexion {
 private:
-    struct lws_context* contexto;
-    struct lws* websocket;
     std::string servidor;
     int puerto;
     std::string usuario;
-    std::atomic<bool> conectado;
+    
+    struct lws_context* contexto;
+    struct lws* websocket;
+    bool conectado;
+    bool establecido;
     std::thread hilo_escucha;
     
-    static int callback(struct lws* wsi, enum lws_callback_reasons reason, void* user,
-                        void* in, size_t len);
     void escuchar();
-
+    
 public:
     Conexion();
     ~Conexion();
-
+    
     bool conectar(const std::string& ip, int puerto, const std::string& username);
-	bool enviar(const std::vector<uint8_t>& mensaje);
+    bool enviar(const std::vector<uint8_t>& mensaje);
     void cerrar();
     bool estaConectado() const;
+    
+    void setConectado(bool estado);
+    void setEstablecido(bool estado);
 };
 
-#endif 
+#endif
