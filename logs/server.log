@@ -32,3 +32,17 @@
 [Tue Apr  1 12:07:36 2025] List Users: Solicitud de lista de usuarios
 [Tue Apr  1 12:07:47 2025] Get User: gustavo
 [Tue Apr  1 12:08:51 2025] Disconnect: gustavo
+[Tue Apr  1 16:47:06 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 16:47:06 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 16:47:18 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 16:47:19 2025] Register Attempt: gustavo
+[Tue Apr  1 16:47:19 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 16:47:19 2025] Register Success: gustavo
+[Tue Apr  1 16:51:30 2025] Disconnect: gustavo
+[Tue Apr  1 17:14:09 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 17:14:09 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 17:14:17 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 17:14:17 2025] Register Attempt: gustavo
+[Tue Apr  1 17:14:17 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 17:14:17 2025] Register Success: gustavo
+[Tue Apr  1 17:31:16 2025] Disconnect: gustavo
