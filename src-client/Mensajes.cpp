@@ -17,6 +17,12 @@ std::vector<uint8_t> Mensajes::formatearMensaje(uint8_t tipo, const std::vector<
     return mensaje;
 }
 
+bool Mensajes::enviarNombreUsuario(const std::string& nombreUsuario) {
+	std::vector<uint8_t> contenido(nombreUsuario.begin(), nombreUsuario.end());
+	std::vector<uint8_t> msgBinario = formatearMensaje(0x01, contenido);
+	return conexion-> enviar(msgBinario);
+}
+
 bool Mensajes::enviarMensaje(const std::string& mensaje) {
     std::vector<uint8_t> contenido(mensaje.begin(), mensaje.end());
     std::vector<uint8_t> msgBinario = formatearMensaje(0x01, contenido);

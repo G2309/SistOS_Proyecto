@@ -25,7 +25,7 @@ int main() {
     int puerto = 9000;
     std::string username;
     
-    std::cout << "Introduce tu nombre de usuario: ";
+	std::cout << "Introduce tu nombre de usuario: ";
     std::getline(std::cin, username);
     
     Conexion conexion;
@@ -37,6 +37,11 @@ int main() {
     std::cout << "Conectado al servidor WebSocket." << std::endl;
 
 	Mensajes mensajes(&conexion);
+
+	if (!mensajes.enviarNombreUsuario(username)) {
+		std::cerr << "Error al enviar el nombre del usuario" << std::endl;
+		return -1;
+	}
     
     // Iniciar el hilo de entrada del usuario
     std::thread hiloEntrada(manejarEntrada, std::ref(conexion), std::ref(mensajes));
