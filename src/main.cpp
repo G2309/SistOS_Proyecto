@@ -1,24 +1,21 @@
 #include "Conexion.h"
+#include "Mensajes.h"
 #include <iostream>
 #include <thread>
 #include <vector>
 #include <string>
 
-void manejarEntrada(Conexion& conexion) {
+void manejarEntrada(Conexion& conexion, Mensajes& mensajes) {
     std::string mensaje;
     while (conexion.estaConectado()) {
         std::cout << "Introduce un mensaje para enviar: ";
         std::getline(std::cin, mensaje);
         if (!mensaje.empty()) {
-            // Convertir string a vector<uint8_t>
-            std::vector<uint8_t> datosBinarios(mensaje.begin(), mensaje.end());
-            
-            // Enviar el vector de bytes
-            if (!conexion.enviar(datosBinarios)) {
-                std::cerr << "Error al enviar el mensaje." << std::endl;
-            } else {
-                std::cout << "Mensaje enviado." << std::endl;
-            }
+			if (!mensajes.enviarMensaje(mensaje)) {
+				std::cerr << "Error al enviar el mensaje [3]" << std::endl ;
+			} else {
+				std::cout << "Mensaje enviado" << std::endl;
+			}
         }
     }
 }
@@ -38,9 +35,11 @@ int main() {
     }
     
     std::cout << "Conectado al servidor WebSocket." << std::endl;
+
+	Mensajes mensajes(&conexion);
     
     // Iniciar el hilo de entrada del usuario
-    std::thread hiloEntrada(manejarEntrada, std::ref(conexion));
+    std::thread hiloEntrada(manejarEntrada, std::ref(conexion), std::ref(mensajes));
     
     // Esperar a que el hilo termine (cuando se cierre la conexión)
     hiloEntrada.join();
