@@ -1,3 +1,4 @@
 *.out
 chat_server
+chat_client
 build
