@@ -21,6 +21,7 @@ public:
     bool enviarMensaje(const std::string& mensaje);
     bool enviarMensajeA(const std::string& destinatario, const std::string& mensaje);
     bool solicitarHistorial(const std::string& chat);
+	bool registrarUsuario(const std::string& username);
     
     // Método especial para registro (no en el protocolo original)
     bool registrar(const std::string& nombreUsuario);

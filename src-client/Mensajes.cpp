@@ -83,3 +83,9 @@ bool Mensajes::registrar(const std::string& nombreUsuario) {
     std::vector<uint8_t> msgBinario = formatearMensaje(0x0A, contenido); // 0x0A = 10 en decimal
     return conexion->enviar(msgBinario);
 }
+
+bool Mensajes::registrarUsuario(const std::string& username) {
+    std::vector<uint8_t> contenido(username.begin(), username.end());
+    std::vector<uint8_t> msgBinario = formatearMensaje(0x0A, contenido); // 0x0A = 10 (Código para registro)
+    return conexion->enviar(msgBinario);
+}

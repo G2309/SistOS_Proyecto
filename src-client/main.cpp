@@ -156,10 +156,12 @@ int main() {
     }
     
     std::cout << "Conectado al servidor WebSocket." << std::endl;
+    
+    // Esperar un momento para asegurarnos de que el registro se ha completado
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     Mensajes mensajes(&conexion);
     
-    // Iniciar el hilo de entrada del usuario
     manejarEntrada(conexion, mensajes, username);
     
     // Cerrar la conexión

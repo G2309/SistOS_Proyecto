@@ -217,6 +217,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
     }
     
     std::string path = "/?name=" + username;
+	std::cout << "Path a enviar: " << path << std::endl;
     struct lws_client_connect_info ccinfo = {};
     ccinfo.context = contexto;
     ccinfo.address = ip.c_str();
@@ -237,11 +238,33 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
     hilo_escucha = std::thread([this]() { escuchar(); });
     
     // Esperar hasta que la conexión esté establecida o falle
-    int timeout = 30; // 3 segundos (100ms * 30)
+    int timeout = 30; 
     while (timeout > 0 && !establecido) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         timeout--;
     }
+
+	if (!establecido) {
+        std::cerr << "Tiempo de espera agotado para establecer la conexión." << std::endl;
+        cerrar();
+        return false;
+    }
+    
+    // Ahora registramos el usuario enviando un mensaje tipo 10
+    std::vector<uint8_t> contenido(username.begin(), username.end());
+    std::vector<uint8_t> mensajeRegistro;
+    mensajeRegistro.push_back(10); // Tipo 10 = registro
+    mensajeRegistro.push_back(username.length());
+    mensajeRegistro.insert(mensajeRegistro.end(), contenido.begin(), contenido.end());
+    
+    std::cout << "Enviando mensaje de registro para usuario: " << username << std::endl;
+    if (!enviar(mensajeRegistro)) {
+        std::cerr << "Error al enviar mensaje de registro" << std::endl;
+        cerrar();
+        return false;
+    }
+    
+    std::cout << "Mensaje de registro enviado." << std::endl;
     
     return establecido;
 }

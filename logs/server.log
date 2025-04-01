@@ -13,3 +13,22 @@
 [Tue Apr  1 01:16:57 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
 [Tue Apr  1 01:25:00 2025] Connection: Nueva conexión WebSocket establecida
 [Tue Apr  1 01:25:00 2025] Connection Error: No se proporcionó nombre de usuario
+[Tue Apr  1 11:43:37 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 11:43:37 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 11:43:50 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 11:43:50 2025] Connection Error: No se proporcionó nombre de usuario
+[Tue Apr  1 11:51:32 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 11:51:32 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 11:51:39 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 11:51:39 2025] Connection Error: No se proporcionó nombre de usuario
+[Tue Apr  1 11:57:05 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 11:57:05 2025] Connection Error: No se proporcionó nombre de usuario
+[Tue Apr  1 12:06:10 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 12:06:10 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 12:07:20 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 12:07:21 2025] Register Attempt: gustavo
+[Tue Apr  1 12:07:21 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 12:07:21 2025] Register Success: gustavo
+[Tue Apr  1 12:07:36 2025] List Users: Solicitud de lista de usuarios
+[Tue Apr  1 12:07:47 2025] Get User: gustavo
+[Tue Apr  1 12:08:51 2025] Disconnect: gustavo
