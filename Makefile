@@ -8,7 +8,11 @@ INCLUDE_DIR = include
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+<<<<<<< HEAD
 TARGET = chat_client
+=======
+TARGET = chat_server
+>>>>>>> server
 
 .PHONY: all clean run
 
@@ -27,3 +31,7 @@ run: $(TARGET)
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
+<<<<<<< HEAD
+=======
+
+>>>>>>> server
