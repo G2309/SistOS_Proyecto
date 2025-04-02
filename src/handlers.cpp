@@ -231,55 +231,69 @@ void handle_received_message(ServerState *state, struct lws *wsi, uint8_t messag
             break;
         }
         
-        // Listar usuarios conectados
-        case 1: {
-            // Verificar que el usuario esté registrado
-            bool user_registered = false;
-            std::string username;
-            
-            pthread_mutex_lock(&state->user_mutex);
-            for (int i = 0; i < state->user_count; i++) {
-                if (state->users[i].wsi == wsi) {
-                    user_registered = true;
-                    username = state->users[i].username;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&state->user_mutex);
-            
-            if (!user_registered) {
-                std::cout << "Usuario no registrado intentando listar usuarios\n";
-                
-                // Enviar error de usuario no registrado
-                std::vector<uint8_t> error_response = {5}; // Código de error 5: Usuario no registrado
-                sendBinaryMessage(wsi, 50, error_response);
-                break;
-            }
-            
-            std::cout << "Usuario " << username << " solicitó lista de usuarios\n";
-            log_event("List Users", "Solicitud de lista de usuarios");
-            
-            // Preparar respuesta con lista de usuarios (tipo 51)
-            std::vector<uint8_t> response;
-            response.push_back(state->user_count); // Número de usuarios
-            
-            pthread_mutex_lock(&state->user_mutex);
-            for (int i = 0; i < state->user_count; i++) {
-                // Añadir nombre de usuario
-                size_t username_len = strlen(state->users[i].username);
-                response.push_back(username_len);
-                for (size_t j = 0; j < username_len; j++) {
-                    response.push_back(state->users[i].username[j]);
-                }
-                // Añadir estado
-                response.push_back(state->users[i].status);
-            }
-            pthread_mutex_unlock(&state->user_mutex);
-            
-            sendBinaryMessage(wsi, 51, response);
-            break;
-        }
-        
+		// Listar usuarios conectados
+		case 1: {
+    		// Verificar que el usuario esté registrado
+    		bool user_registered = false;
+    		std::string username;
+    		
+    		pthread_mutex_lock(&state->user_mutex);
+    		for (int i = 0; i < state->user_count; i++) {
+        		if (state->users[i].wsi == wsi) {
+            		user_registered = true;
+            		username = state->users[i].username;
+            		break;
+        		}
+    		}
+    		pthread_mutex_unlock(&state->user_mutex);
+    		
+    		if (!user_registered) {
+        		std::cout << "Usuario no registrado intentando listar usuarios\n";
+        		std::vector<uint8_t> error_response = {5}; // Usuario no registrado
+        		sendBinaryMessage(wsi, 50, error_response);
+        		break;
+    		}
+    		
+    		std::cout << "Usuario " << username << " solicitó lista de usuarios\n";
+    		log_event("List Users", "Solicitud de lista de usuarios");
+    		
+    		// Preparar respuesta con lista de usuarios (tipo 51)
+    		std::vector<uint8_t> response;
+    		
+    		// Contar usuarios activos
+    		int activeUsers = 0;
+    		pthread_mutex_lock(&state->user_mutex);
+    		for (int i = 0; i < state->user_count; i++) {
+        		if (strlen(state->users[i].username) > 0) {
+            		activeUsers++;
+        		}
+    		}
+    		
+    		// Añadir número de usuarios activos
+    		response.push_back(activeUsers);
+    		
+    		// Añadir información de cada usuario
+    		for (int i = 0; i < state->user_count; i++) {
+        		if (strlen(state->users[i].username) > 0) {
+            		// Añadir nombre de usuario
+            		size_t username_len = strlen(state->users[i].username);
+            		response.push_back(username_len);
+            		
+            		// Añadir cada carácter del nombre de usuario individualmente
+            		for (size_t j = 0; j < username_len; j++) {
+                		response.push_back(state->users[i].username[j]);
+            		}
+            		
+            		// Añadir estado
+            		response.push_back(state->users[i].status);
+        		}
+    		}
+    		pthread_mutex_unlock(&state->user_mutex);
+    		
+    		// Enviar la respuesta
+    		sendBinaryMessage(wsi, 51, response);
+    		break;
+		}
         // Obtener usuario por nombre
         case 2: {
             // Verificar que el usuario esté registrado

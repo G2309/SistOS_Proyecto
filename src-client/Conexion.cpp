@@ -39,35 +39,43 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                     break;
                 }
                 
-                case 51: { // Respuesta: Listar usuarios
-                    if (len < 2) break;
-                    uint8_t user_count = ((uint8_t *)in)[1];
-                    std::cout << "Usuarios conectados (" << (int)user_count << "):\n";
-                    
-                    size_t offset = 2;
-                    for (int i = 0; i < user_count && offset < len; i++) {
-                        uint8_t username_len = ((uint8_t *)in)[offset++];
-                        if (offset + username_len >= len) break;
-                        
-                        std::string username((char*)in + offset, username_len);
-                        offset += username_len;
-                        
-                        if (offset >= len) break;
-                        uint8_t status = ((uint8_t *)in)[offset++];
-                        
-                        std::string status_str;
-                        switch (status) {
-                            case 0: status_str = "DESACTIVADO"; break;
-                            case 1: status_str = "ACTIVO"; break;
-                            case 2: status_str = "OCUPADO"; break;
-                            case 3: status_str = "INACTIVO"; break;
-                            default: status_str = "DESCONOCIDO";
-                        }
-                        
-                        std::cout << "- " << username << " (" << status_str << ")\n";
-                    }
-                    break;
-                }
+				case 51: { // Respuesta: Listar usuarios
+    				if (len < 2) break;
+    				uint8_t user_count = ((uint8_t *)in)[1];
+    				std::cout << "Usuarios conectados (" << (int)user_count << "):\n";
+    				
+    				size_t offset = 2; // Saltamos el tipo de mensaje (1 byte) y el conteo de usuarios (1 byte)
+    				for (int i = 0; i < user_count && offset < len; i++) {
+        				// Obtener longitud del nombre de usuario
+        				if (offset >= len) break;
+        				uint8_t username_len = ((uint8_t *)in)[offset++];
+        				
+        				// Verificar que hay suficientes bytes para el nombre
+        				if (offset + username_len > len) break;
+        				
+        				// Extraer el nombre de usuario como string
+        				std::string username((char*)in + offset, username_len);
+        				offset += username_len;
+        				
+        				// Verificar que hay un byte más para el estado
+        				if (offset >= len) break;
+        				uint8_t status = ((uint8_t *)in)[offset++];
+        				
+        				// Convertir estado a texto
+        				std::string status_str;
+        				switch (status) {
+            				case 0: status_str = "DESACTIVADO"; break;
+            				case 1: status_str = "ACTIVO"; break;
+            				case 2: status_str = "OCUPADO"; break;
+            				case 3: status_str = "INACTIVO"; break;
+            				default: status_str = "DESCONOCIDO";
+        				}
+        				
+        				// Mostrar información del usuario
+        				std::cout << "- " << username << " (" << status_str << ")\n";
+    				}
+    				break;
+				}
                 
                 case 52: { // Respuesta: Obtener usuario por nombre
                     if (len < 2) break;
@@ -200,7 +208,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
     servidor = ip;
     this->puerto = puerto;
     usuario = username;
-    
+    // protocolo
     struct lws_protocols protocols[] = {
         {"chat-protocol", callback_websocket, 0, 4096},
         {nullptr, nullptr, 0, 0}
@@ -215,7 +223,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
         std::cerr << "Error al crear el contexto de WebSockets." << std::endl;
         return false;
     }
-    
+    // string path
     std::string path = "/?name=" + username;
 	std::cout << "Path a enviar: " << path << std::endl;
     struct lws_client_connect_info ccinfo = {};

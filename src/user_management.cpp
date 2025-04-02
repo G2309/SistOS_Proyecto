@@ -12,6 +12,12 @@
 void init_server_state(ServerState* state) {
     state->user_count = 0;
     pthread_mutex_init(&state->user_mutex, NULL);
+    
+    for (int i = 0; i < MAX_USERS; i++) {
+        memset(&state->users[i], 0, sizeof(User));
+        state->users[i].status = DESACTIVADO;
+        state->users[i].wsi = nullptr;
+    }
 }
 
 int login_user(ServerState* state, const char* username, const char* password, struct lws *wsi) {
@@ -152,7 +158,7 @@ void list_users(ServerState* state, char* buffer, size_t buffer_size) {
             case OCUPADO: status_str = "OCUPADO"; break;
             case INACTIVO: status_str = "INACTIVO"; break;
             case DESACTIVADO: status_str = "DESACTIVADO"; break;
-            default: status_str = "DESCONOCIDO";
+            //default: status_str = "DESCONOCIDO";
         }
         
         snprintf(user_info, sizeof(user_info), "Usuario: %s, Status: %s\n", 
