@@ -264,7 +264,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
     usuario = username;
     // protocolo
     struct lws_protocols protocols[] = {
-        {"chat-protocol", callback_websocket, 0, 4096},
+        {"ws-protocol", callback_websocket, 0, 4096},
         {nullptr, nullptr, 0, 0}
     };
     

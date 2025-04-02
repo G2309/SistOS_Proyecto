@@ -10,7 +10,7 @@
 
 #define MAX_PAYLOAD 1024
 #define BUFFER_SIZE 2048
-#define PROTOCOL_NAME "chat-protocol"
+#define PROTOCOL_NAME "ws-protocol"
 
 ServerState server_state;
 
