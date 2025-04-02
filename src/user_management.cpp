@@ -5,6 +5,8 @@
 #include "user_management.h"
 #include "logging.h"
 #include <unistd.h>
+#include <string>
+#include <vector>
 #include <ctime>
 
 void init_server_state(ServerState* state) {
@@ -48,6 +50,7 @@ void logout_user(ServerState *state, const char *username) {
 
     pthread_mutex_unlock(&state->user_mutex);
 }
+
 
 int register_user(ServerState *state, const char *username, const char *password, struct lws *wsi) {
     pthread_mutex_lock(&state->user_mutex);
@@ -188,15 +191,17 @@ int change_user_status(ServerState *state, const char *username, UserStatus new_
 
 void* monitor_inactivity(void* arg) {
     ServerState* state = (ServerState*)arg;
-
     while(1) {
+        // Vector para almacenar usuarios que cambiarán de estado
+        std::vector<std::string> usuarios_a_notificar;
+        
         pthread_mutex_lock(&state->user_mutex);
         time_t now = time(NULL);
-
-        for (int i=0; i < state->user_count; i++){
+        
+        for (int i=0; i < state->user_count; i++) {
             if (state->users[i].status == ACTIVO) {
                 double diff = difftime(now, state->users[i].last_active);
-
+                
                 if (diff >= TIMEOUT_SECONDS) {
                     state->users[i].status = INACTIVO;
                     
@@ -204,33 +209,21 @@ void* monitor_inactivity(void* arg) {
                     printf("Usuario %s está INACTIVO (%.0f segundos sin actividad)\n", 
                            state->users[i].username, diff);
                     
-                    // Notificar a todos sobre el cambio de estado
-                    // Nota: No podemos llamar a broadcast_message aquí porque tenemos el mutex bloqueado
-                    // y podría causar un deadlock. En su lugar, marcamos que se necesita notificar.
-                    state->users[i].needs_status_notification = 1;
+                    // Guardar el nombre de usuario para notificar después
+                    usuarios_a_notificar.push_back(state->users[i].username);
                 }
-            }
-        }
-        
-        // Guardar los usuarios que necesitan notificación
-        char usernames_to_notify[MAX_USERS][USERNAME_MAX_LEN];
-        int notify_count = 0;
-        
-        for (int i=0; i < state->user_count; i++) {
-            if (state->users[i].needs_status_notification) {
-                strncpy(usernames_to_notify[notify_count], state->users[i].username, USERNAME_MAX_LEN);
-                state->users[i].needs_status_notification = 0;
-                notify_count++;
             }
         }
         
         pthread_mutex_unlock(&state->user_mutex);
         
-        // Ahora podemos notificar sin tener el mutex bloqueado
-        // En una implementación real, llamaríamos a una función para notificar
-        // el cambio de estado a todos los clientes
+        // Ahora que el mutex está liberado, se van a enviar las notificaciones
+        for (const auto& username : usuarios_a_notificar) {
+            // Usar la función puente en lugar de broadcast_message directamente
+            notify_status_change(state, username.c_str(), INACTIVO);
+        }
         
-        // Dormir durante 5 segundos antes de la próxima comprobación
+        // Esperar durante 5 segundos antes de la próxima comprobación
         sleep(5);
     }
     return NULL;

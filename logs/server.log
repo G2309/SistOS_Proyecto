@@ -46,3 +46,34 @@
 [Tue Apr  1 17:14:17 2025] Register Success: Usuario gustavo registrado con ID 1
 [Tue Apr  1 17:14:17 2025] Register Success: gustavo
 [Tue Apr  1 17:31:16 2025] Disconnect: gustavo
+[Tue Apr  1 19:25:54 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 19:25:54 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 19:26:00 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 19:26:00 2025] Register Attempt: gustavo
+[Tue Apr  1 19:26:00 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 19:26:00 2025] Register Success: gustavo
+[Tue Apr  1 19:26:11 2025] Disconnect: gustavo
+[Tue Apr  1 19:26:18 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 19:26:18 2025] Register Attempt: gustavo
+[Tue Apr  1 19:26:18 2025] Reconnect: Usuario gustavo reconectado
+[Tue Apr  1 19:26:18 2025] Register Success: gustavo
+[Tue Apr  1 19:26:27 2025] Get User: gustavo
+[Tue Apr  1 19:26:53 2025] Disconnect: gustavo
+[Tue Apr  1 19:26:56 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 19:26:56 2025] Register Attempt: chen
+[Tue Apr  1 19:26:56 2025] Register Success: Usuario chen registrado con ID 2
+[Tue Apr  1 19:26:56 2025] Register Success: chen
+[Tue Apr  1 19:27:52 2025] Disconnect: chen
+[Tue Apr  1 20:12:20 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 20:12:20 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 20:12:27 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 20:12:27 2025] Register Attempt: gustavo
+[Tue Apr  1 20:12:27 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 20:12:27 2025] Register Success: gustavo
+[Tue Apr  1 20:15:06 2025] Server Start: Iniciando servidor de chat
+[Tue Apr  1 20:15:06 2025] Server Start: Servidor WebSockets iniciado en puerto 9000
+[Tue Apr  1 20:15:12 2025] Connection: Nueva conexión WebSocket establecida
+[Tue Apr  1 20:15:13 2025] Register Attempt: gustavo
+[Tue Apr  1 20:15:13 2025] Register Success: Usuario gustavo registrado con ID 1
+[Tue Apr  1 20:15:13 2025] Register Success: gustavo
+[Tue Apr  1 20:16:05 2025] Disconnect: gustavo

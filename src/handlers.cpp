@@ -7,7 +7,6 @@
 #include <vector>
 #include <regex.h> 
 
-
 // Función para enviar un mensaje binario a un cliente específico
 void sendBinaryMessage(struct lws *wsi, uint8_t message_type, const std::vector<uint8_t>& data) {
     std::vector<uint8_t> buffer;
@@ -39,6 +38,22 @@ void broadcast_message(ServerState *state, uint8_t message_type, const std::vect
     }
     
     pthread_mutex_unlock(&state->user_mutex);
+}
+
+void notify_status_change(ServerState* state, const char* username, UserStatus new_status) {
+    std::vector<uint8_t> notification;
+    
+    // Añadir nombre de usuario
+    size_t username_len = strlen(username);
+    notification.push_back(username_len);
+    for (size_t i = 0; i < username_len; i++) {
+        notification.push_back(username[i]);
+    }
+    
+    // Añadir estado
+    notification.push_back(new_status);
+    
+    broadcast_message(state, 54, notification, nullptr);
 }
 
 // Añade esta implementación a handlers.cpp
@@ -86,7 +101,45 @@ void handle_client_disconnection(ServerState *state, struct lws *wsi) {
 }
 
 void handle_received_message(ServerState *state, struct lws *wsi, uint8_t message_type, uint8_t *data, size_t len) {
+		bool need_status_notification = false;
+    	std::string username_for_notification;
+    	
+    	pthread_mutex_lock(&state->user_mutex);
+    	for (int i = 0; i < state->user_count; i++) {
+        	if (state->users[i].wsi == wsi) {
+            	// Actualizar tiempo de actividad
+            	state->users[i].last_active = time(NULL);
+            	
+            	// Si estaba inactivo, cambiarlo a activo y notificar
+            	if (state->users[i].status == INACTIVO) {
+                	state->users[i].status = ACTIVO;
+                	need_status_notification = true;
+                	username_for_notification = state->users[i].username;
+            	}
+            	break;
+        	}
+    	}
+    	pthread_mutex_unlock(&state->user_mutex);
+    	
+    	// Si es necesario, notificar el cambio de estado
+    	if (need_status_notification) {
+        	std::vector<uint8_t> notification;
+        	
+        	// Añadir nombre de usuario
+        	notification.push_back(username_for_notification.length());
+        	for (size_t i = 0; i < username_for_notification.length(); i++) {
+            	notification.push_back(username_for_notification[i]);
+        	}
+        	
+        	// Añadir estado (ACTIVO = 1)
+        	notification.push_back(ACTIVO);
+        	
+        	broadcast_message(state, 54, notification, nullptr);
+    	}
     switch (message_type) {
+
+		// Actualizar tiempo de actividad para ir llevando los cambios de estados automaticos, de activo a ocupado cuando se escribe, etc.
+
         // Registro de usuario (código 10)
         case 10: {
             std::string username(reinterpret_cast<char*>(data), len);
@@ -297,8 +350,8 @@ void handle_received_message(ServerState *state, struct lws *wsi, uint8_t messag
             
             std::cout << "Petición para cambiar estado del usuario: " << username << " a " << (int)new_status << "\n";
             
-            if (new_status > 3) { // Verificar que el estado sea válido
-                // Estado inválido - enviar error (tipo 50)
+            if (new_status > 3) { // Verificar que el estado sea válido por que solo tenemos 4 estados
+                // Estado inválido - enviar error (tipo 50) [por el protocolo]
                 uint8_t error_code = 2; // Estado inválido
                 std::vector<uint8_t> error_response = {error_code};
                 sendBinaryMessage(wsi, 50, error_response);

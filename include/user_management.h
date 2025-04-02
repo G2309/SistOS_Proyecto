@@ -7,7 +7,7 @@
 #define MAX_USERS 100
 #define USERNAME_MAX_LEN 16
 #define PASSWORD_MAX_LEN 32
-#define TIMEOUT_SECONDS 300 // 5 minutos de inactividad
+#define TIMEOUT_SECONDS 10 // Puse 10 para que se pueda ver en la presentacion sin esperar mucho tiempo 
 
 typedef enum {
     DESACTIVADO = 0,
@@ -42,5 +42,6 @@ User* find_user_by_name(ServerState* state, const char* username);
 void list_users(ServerState* state, char* buffer, size_t buffer_size);
 int change_user_status(ServerState* state, const char* username, UserStatus new_status);
 void* monitor_inactivity(void* arg);
+void notify_status_change(ServerState* state, const char* username, UserStatus new_status);
 
 #endif
