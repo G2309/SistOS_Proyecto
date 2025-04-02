@@ -277,36 +277,53 @@ VentanaPrincipal::~VentanaPrincipal() {
     delete m_interceptor;
 }
 
-void VentanaPrincipal::OnTimer(wxTimerEvent& event) {
-    if (m_conexion && m_mensajes && m_conexion->estaConectado()) {
-        // Actualizar lista de usuarios cada 5 segundos
-        static int contador = 0;
-        if (++contador >= 50) { // 50 * 100ms = 5 segundos
-            m_mensajes->solicitarListaUsuarios();
-            contador = 0;
-        }
-    } else {
-        // Si perdimos la conexión, desconectar
-        if (m_conexion && !m_conexion->estaConectado()) {
-            wxCommandEvent evt(wxEVT_COMMAND_BUTTON_CLICKED, ID_CONECTAR);
-            wxPostEvent(this, evt);
-        }
-    }
-}
-
 void VentanaPrincipal::OnMensajeConsola(wxCommandEvent& event) {
     // Procesar mensaje de la consola
     wxString mensaje = event.GetString();
     ProcesarMensajeConsola(mensaje);
 }
 
+// Primera función - ProcesarMensajeConsola
 void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
-    // Analizar el mensaje de la consola para determinar su tipo
+    // Depuración: Ver el mensaje exacto que estamos recibiendo
+    // std::cout << "DEBUG - Mensaje recibido: [" << mensaje.ToStdString() << "]" << std::endl;
     
     // Para mensajes de error
     if (mensaje.Contains("Error:")) {
         wxString errorMsg = mensaje.AfterFirst(':').Trim();
         wxMessageBox(errorMsg, "Error", wxICON_ERROR);
+        return;
+    }
+    
+    // Para la lista de usuarios
+    if (mensaje.Contains("Usuarios conectados")) {
+        // Limpiar la lista solo cuando recibimos un nuevo conjunto de usuarios
+        m_listaUsuarios->DeleteAllItems();
+        return;
+    }
+    
+    // Para una línea de usuario en la lista
+    if (mensaje.StartsWith("- ") && mensaje.Contains("(")) {
+        wxString nombre = mensaje.AfterFirst('-').BeforeFirst('(').Trim();
+        wxString estado = mensaje.AfterFirst('(').BeforeLast(')').Trim();
+        
+        // Verificar si el usuario ya existe en la lista
+        bool usuarioExistente = false;
+        for (int i = 0; i < m_listaUsuarios->GetItemCount(); i++) {
+            if (m_listaUsuarios->GetItemText(i) == nombre) {
+                // Actualizar su estado
+                m_listaUsuarios->SetItem(i, 1, estado);
+                usuarioExistente = true;
+                break;
+            }
+        }
+        
+        // Si el usuario no existe, agregarlo
+        if (!usuarioExistente) {
+            long indice = m_listaUsuarios->InsertItem(m_listaUsuarios->GetItemCount(), nombre);
+            m_listaUsuarios->SetItem(indice, 1, estado);
+        }
+        
         return;
     }
     
@@ -319,41 +336,22 @@ void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
         wxString usuario = wxString(matches[1]);
         wxString contenido = wxString(matches[2]);
         
-        // Si el mensaje contiene el nombre de un usuario, lo añadimos al chat correspondiente
-        AgregarMensaje(usuario, contenido);
-        return;
-    }
-    
-    // Para listado de usuarios
-    if (mensaje.Contains("- ") && mensaje.Contains("(")) {
-        // Este es un usuario de la lista, actualizamos la lista
-        static bool limpiarLista = true;
-        
-        wxString nombre = mensaje.AfterFirst('-').BeforeFirst('(').Trim();
-        wxString estado = mensaje.AfterFirst('(').BeforeLast(')').Trim();
-        
-        if (limpiarLista) {
-            m_listaUsuarios->DeleteAllItems();
-            limpiarLista = false;
+        // Verificar que no sea un mensaje binario
+        if (!contenido.IsEmpty() && isprint(contenido[0])) {
+            // Si el mensaje contiene el nombre de un usuario, lo añadimos al chat correspondiente
+            AgregarMensaje(usuario, contenido);
         }
-        
-        long indice = m_listaUsuarios->InsertItem(m_listaUsuarios->GetItemCount(), nombre);
-        m_listaUsuarios->SetItem(indice, 1, estado);
-        
-        // Si encontramos "Usuarios conectados", limpiamos la lista para el próximo lote
-        if (mensaje.Contains("Usuarios conectados")) {
-            limpiarLista = true;
-        }
-        
         return;
     }
     
     // Para cambios de estado de usuario
     if (mensaje.Contains("cambió estado a")) {
         std::regex statusRegex("Usuario ([^ ]+) cambió estado a (.+)");
-        if (std::regex_search(mensajeStr, matches, statusRegex) && matches.size() > 2) {
-            wxString usuario = wxString(matches[1]);
-            wxString nuevoEstado = wxString(matches[2]);
+        std::smatch statusMatches;
+        
+        if (std::regex_search(mensajeStr, statusMatches, statusRegex) && statusMatches.size() > 2) {
+            wxString usuario = wxString(statusMatches[1]);
+            wxString nuevoEstado = wxString(statusMatches[2]);
             
             // Actualizar la lista de usuarios si está en ella
             for (int i = 0; i < m_listaUsuarios->GetItemCount(); i++) {
@@ -365,25 +363,39 @@ void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
             
             // Añadir mensaje informativo
             AgregarMensaje("Sistema", usuario + " cambió su estado a " + nuevoEstado);
-            return;
         }
+        return;
     }
     
     // Para nuevo usuario registrado
     if (mensaje.Contains("¡Nuevo usuario registrado!")) {
         std::regex newUserRegex("¡Nuevo usuario registrado! ([^ ]+) \\((.+)\\)");
-        if (std::regex_search(mensajeStr, matches, newUserRegex) && matches.size() > 2) {
-            wxString usuario = wxString(matches[1]);
-            wxString estado = wxString(matches[2]);
+        std::smatch newUserMatches;
+        
+        if (std::regex_search(mensajeStr, newUserMatches, newUserRegex) && newUserMatches.size() > 2) {
+            wxString usuario = wxString(newUserMatches[1]);
+            wxString estado = wxString(newUserMatches[2]);
             
-            // Añadir a la lista de usuarios
-            long indice = m_listaUsuarios->InsertItem(m_listaUsuarios->GetItemCount(), usuario);
-            m_listaUsuarios->SetItem(indice, 1, estado);
+            // Verificar si ya existe el usuario
+            bool usuarioExistente = false;
+            for (int i = 0; i < m_listaUsuarios->GetItemCount(); i++) {
+                if (m_listaUsuarios->GetItemText(i) == usuario) {
+                    m_listaUsuarios->SetItem(i, 1, estado);
+                    usuarioExistente = true;
+                    break;
+                }
+            }
+            
+            // Si no existe, añadirlo
+            if (!usuarioExistente) {
+                long indice = m_listaUsuarios->InsertItem(m_listaUsuarios->GetItemCount(), usuario);
+                m_listaUsuarios->SetItem(indice, 1, estado);
+            }
             
             // Añadir mensaje informativo
             AgregarMensaje("Sistema", "¡Nuevo usuario conectado: " + usuario + " (" + estado + ")!");
-            return;
         }
+        return;
     }
     
     // Para historial de mensajes
@@ -398,9 +410,36 @@ void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
         return;
     }
     
-    // Para otros mensajes importantes que no encajan en las categorías anteriores
-    // Los mostramos en el chat
-    m_textChat->AppendText(mensaje + "\n");
+    // Para mensajes importantes que no encajan en las categorías anteriores
+    // y que no parecen ser datos binarios
+    bool contieneCaracteresImprimibles = false;
+    for (size_t i = 0; i < mensaje.Length(); i++) {
+        if (isprint(mensaje[i])) {
+            contieneCaracteresImprimibles = true;
+            break;
+        }
+    }
+    
+    if (contieneCaracteresImprimibles) {
+        m_textChat->AppendText(mensaje + "\n");
+    }
+}
+
+void VentanaPrincipal::OnTimer(wxTimerEvent& event) {
+    if (m_conexion && m_mensajes && m_conexion->estaConectado()) {
+        // Actualizar lista de usuarios cada 10 segundos en lugar de 5
+        static int contador = 0;
+        if (++contador >= 20) { // 20 * 500ms = 10 segundos
+            m_mensajes->solicitarListaUsuarios();
+            contador = 0;
+        }
+    } else {
+        // Si perdimos la conexión, desconectar
+        if (m_conexion && !m_conexion->estaConectado()) {
+            wxCommandEvent evt(wxEVT_COMMAND_BUTTON_CLICKED, ID_CONECTAR);
+            wxPostEvent(this, evt);
+        }
+    }
 }
 
 void VentanaPrincipal::OnConectar(wxCommandEvent& event) {
