@@ -299,7 +299,6 @@ void VentanaPrincipal::OnTimer(wxTimerEvent& event) {
     }
 }
 
-// Reemplazo de ProcesarMensajeConsola con una versión simplificada:
 
 void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
     // Ignorar mensajes de depuración
@@ -319,36 +318,53 @@ void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
     }
     
     // Para mensajes de chat (formato especial)
-    if (mensaje.StartsWith("MENSAJE_CHAT:")) {
-        wxString contenidoMsg = mensaje.Mid(13); // Saltar "MENSAJE_CHAT: "
-        int posSeparador = contenidoMsg.Find(':');
+	if (mensaje.StartsWith("MENSAJE_CHAT:")) {
+    wxString contenidoMsg = mensaje.Mid(13); // Saltar "MENSAJE_CHAT: "
+    int posSeparador = contenidoMsg.Find(':');
+    
+    if (posSeparador != wxNOT_FOUND) {
+        wxString remitente = contenidoMsg.Left(posSeparador).Trim();
+        wxString contenido = contenidoMsg.Mid(posSeparador + 1).Trim();
         
-        if (posSeparador != wxNOT_FOUND) {
-            wxString remitente = contenidoMsg.Left(posSeparador).Trim();
-            wxString contenido = contenidoMsg.Mid(posSeparador + 1).Trim();
-            
-            // Determinar dónde mostrar el mensaje
-            bool mensajeMostrado = false;
-            
-            // 1. Ver si tenemos un chat privado con este usuario
-            for (size_t i = 1; i < m_notebook->GetPageCount(); i++) {
-                if (m_notebook->GetPageText(i) == remitente) {
-                    auto it = m_chatsPrivados.find(remitente);
-                    if (it != m_chatsPrivados.end()) {
-                        it->second->AppendText(remitente + ": " + contenido + "\n");
-                        mensajeMostrado = true;
-                    }
-                    break;
+        // Si el remitente soy yo, no procesar (ya se mostró al enviar)
+        if (remitente == m_nombreUsuario) {
+            return;
+        }
+        
+        // Buscar o crear un chat privado con este usuario
+        bool mostradoEnPrivado = false;
+        
+        // 1. Ver si ya existe una pestaña para este usuario
+        for (size_t i = 0; i < m_notebook->GetPageCount(); i++) {
+            if (m_notebook->GetPageText(i) == remitente) {
+                // Ya existe una pestaña, mostrar ahí
+                auto it = m_chatsPrivados.find(remitente);
+                if (it != m_chatsPrivados.end()) {
+                    it->second->AppendText(remitente + ": " + contenido + "\n");
+                    mostradoEnPrivado = true;
                 }
-            }
-            
-            // 2. Si el mensaje es para el chat general o no tenemos chat privado
-            if (!mensajeMostrado) {
-                m_textChat->AppendText(remitente + ": " + contenido + "\n");
+                break;
             }
         }
-        return;
+        
+        // 2. Si no se mostró en privado y el destinatario soy yo, crear nueva pestaña
+        if (!mostradoEnPrivado && remitente != m_nombreUsuario) {
+            // Este es un mensaje directo para mí, crear pestaña si no existe
+            wxPanel* panel = CrearPestanaChat(remitente);
+            auto it = m_chatsPrivados.find(remitente);
+            if (it != m_chatsPrivados.end()) {
+                it->second->AppendText(remitente + ": " + contenido + "\n");
+                mostradoEnPrivado = true;
+            }
+        }
+        
+        // 3. Si no es privado o no se pudo mostrar, mostrar en general
+        if (!mostradoEnPrivado) {
+            m_textChat->AppendText(remitente + ": " + contenido + "\n");
+        }
     }
+    return;
+}
     
     // Para una línea de usuario en la lista
     if (mensaje.StartsWith("- ") && mensaje.Contains("(")) {
@@ -591,45 +607,54 @@ void VentanaPrincipal::OnEnviarMensaje(wxCommandEvent& event) {
     int pestanaActual = m_notebook->GetSelection();
     if (pestanaActual < 0) return;
     
-    // Determinar el destinatario y el texto a enviar
-    wxString destinatario;
     wxString mensaje;
+    wxString destinatario;
     
     if (pestanaActual == 0) {
-        // Pestaña General -> Chat global
-        destinatario = "~";
+        // Estamos en la pestaña "General"
         mensaje = m_textMensaje->GetValue();
+        destinatario = "~";  // Chat general
     } else {
-        // Pestaña de chat privado
+        // Estamos en una pestaña de chat privado
         destinatario = m_notebook->GetPageText(pestanaActual);
         
         // Buscar el control de texto en esta pestaña
         wxPanel* panel = static_cast<wxPanel*>(m_notebook->GetPage(pestanaActual));
         if (!panel) return;
         
-        // Buscar el primer control de texto que no sea de solo lectura
+        // Obtener todos los controles de texto de la pestaña
+        wxTextCtrl* textInput = nullptr;
         wxWindowList& children = panel->GetChildren();
-        for (wxWindowList::iterator it = children.begin(); it != children.end(); ++it) {
-            wxTextCtrl* ctrl = dynamic_cast<wxTextCtrl*>(*it);
-            if (ctrl && !(ctrl->HasFlag(wxTE_READONLY))) {
-                mensaje = ctrl->GetValue();
-                
-                // Limpiar este control después de enviar
-                if (!mensaje.IsEmpty()) {
-                    ctrl->Clear();
-                }
+        
+        for (wxWindow* child : children) {
+            wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>(child);
+            if (textCtrl && !textCtrl->HasFlag(wxTE_READONLY)) {
+                textInput = textCtrl;
                 break;
             }
         }
+        
+        if (!textInput) {
+            wxMessageBox("No se pudo encontrar el área de texto para enviar mensaje", "Error", wxICON_ERROR);
+            return;
+        }
+        
+        mensaje = textInput->GetValue();
+        if (!mensaje.IsEmpty()) {
+            textInput->Clear();
+        }
     }
     
-    // Verificar que hay mensaje para enviar
+    // Verificar que el mensaje no esté vacío
     if (mensaje.IsEmpty()) {
         wxMessageBox("El mensaje no puede estar vacío", "Error", wxICON_ERROR);
         return;
     }
     
-    // Enviar el mensaje
+    std::cout << "Enviando mensaje: Destinatario=[" << destinatario.ToStdString() 
+              << "], Mensaje=[" << mensaje.ToStdString() << "]" << std::endl;
+    
+    // Enviar el mensaje según el destinatario
     bool exito = false;
     if (destinatario == "General" || destinatario == "~") {
         exito = m_mensajes->enviarMensaje(mensaje.ToStdString());
@@ -638,11 +663,12 @@ void VentanaPrincipal::OnEnviarMensaje(wxCommandEvent& event) {
     }
     
     if (exito) {
-        // Mostrar el mensaje enviado en la ventana activa
+        // Mostrar mensaje en el área de chat apropiada
         wxTextCtrl* areaChat = nullptr;
         
         if (pestanaActual == 0) {
             areaChat = m_textChat;
+            m_textMensaje->Clear();
         } else {
             auto it = m_chatsPrivados.find(destinatario);
             if (it != m_chatsPrivados.end()) {
@@ -653,13 +679,9 @@ void VentanaPrincipal::OnEnviarMensaje(wxCommandEvent& event) {
         if (areaChat) {
             areaChat->AppendText(m_nombreUsuario + ": " + mensaje + "\n");
         }
-        
-        // Si es pestaña general, ya se limpió el texto
-        if (pestanaActual == 0) {
-            m_textMensaje->Clear();
-        }
     } else {
-        wxMessageBox("Error al enviar el mensaje", "Error", wxICON_ERROR);
+        wxMessageBox("Error al enviar el mensaje. Es posible que el usuario no esté disponible.", 
+                    "Error", wxICON_ERROR);
     }
 }
 
@@ -715,59 +737,69 @@ void VentanaPrincipal::AgregarMensaje(const wxString& usuario, const wxString& m
 }
 
 wxPanel* VentanaPrincipal::CrearPestanaChat(const wxString& titulo) {
-    // Verificar si ya existe esta pestaña
-    auto it = m_pestanasChat.find(titulo);
-    if (it != m_pestanasChat.end()) {
-        // Seleccionar la pestaña existente
-        for (size_t i = 0; i < m_notebook->GetPageCount(); i++) {
-            if (m_notebook->GetPageText(i) == titulo) {
-                m_notebook->SetSelection(i);
-                break;
-            }
+    // Verificar si ya existe la pestaña
+    for (size_t i = 0; i < m_notebook->GetPageCount(); i++) {
+        if (m_notebook->GetPageText(i) == titulo) {
+            m_notebook->SetSelection(i);
+            return static_cast<wxPanel*>(m_notebook->GetPage(i));
         }
-        return it->second;
     }
     
-    // Crear nueva pestaña para el chat
+    // Crear panel principal para la pestaña
     wxPanel* nuevaPestana = new wxPanel(m_notebook);
-    wxBoxSizer* sizerPestana = new wxBoxSizer(wxVERTICAL);
-    nuevaPestana->SetSizer(sizerPestana);
     
-    // Área de chat (solo lectura)
-    wxTextCtrl* textChat = new wxTextCtrl(nuevaPestana, wxID_ANY, wxEmptyString, 
-                                        wxDefaultPosition, wxDefaultSize, 
+    // Crear sizer principal
+    wxBoxSizer* sizerPrincipal = new wxBoxSizer(wxVERTICAL);
+    nuevaPestana->SetSizer(sizerPrincipal);
+    
+    // Área de chat (texto de solo lectura)
+    wxTextCtrl* textChat = new wxTextCtrl(nuevaPestana, wxID_ANY, wxEmptyString,
+                                        wxDefaultPosition, wxDefaultSize,
                                         wxTE_MULTILINE | wxTE_READONLY | wxTE_RICH2);
-    sizerPestana->Add(textChat, 1, wxEXPAND | wxALL, 5);
+    sizerPrincipal->Add(textChat, 1, wxEXPAND | wxALL, 5);
     
-    // Panel para área de entrada y botón
-    wxPanel* panelEntrada = new wxPanel(nuevaPestana);
+    // Sizer horizontal para la entrada de texto y botón
     wxBoxSizer* sizerEntrada = new wxBoxSizer(wxHORIZONTAL);
-    panelEntrada->SetSizer(sizerEntrada);
     
-    // Control de texto para entrada de mensaje
-    wxTextCtrl* textMensaje = new wxTextCtrl(panelEntrada, wxID_ANY, wxEmptyString, 
-                                           wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-    textMensaje->Bind(wxEVT_KEY_DOWN, &VentanaPrincipal::OnKeyDown, this);
+    // Control de texto para escribir mensajes
+    wxTextCtrl* textMensaje = new wxTextCtrl(nuevaPestana, wxID_ANY, wxEmptyString,
+                                           wxDefaultPosition, wxDefaultSize, 
+                                           wxTE_PROCESS_ENTER);
     sizerEntrada->Add(textMensaje, 1, wxEXPAND | wxALL, 5);
     
-    // Botón de enviar
-    wxButton* btnEnviar = new wxButton(panelEntrada, ID_ENVIAR, "Enviar");
-    sizerEntrada->Add(btnEnviar, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    // Identificar este control para poder acceder a él después
+    textMensaje->SetName("MensajePrivado");
     
-    sizerPestana->Add(panelEntrada, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+    // Manejar la tecla Enter
+    textMensaje->Bind(wxEVT_TEXT_ENTER, [this](wxCommandEvent& event) {
+        wxCommandEvent cmdEvent(wxEVT_COMMAND_BUTTON_CLICKED, ID_ENVIAR);
+        wxPostEvent(this, cmdEvent);
+    });
+    
+    // Botón de enviar
+    wxButton* btnEnviar = new wxButton(nuevaPestana, ID_ENVIAR, "Enviar");
+    sizerEntrada->Add(btnEnviar, 0, wxALL, 5);
+    
+    sizerPrincipal->Add(sizerEntrada, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
     
     // Botón para cerrar chat
-    wxButton* btnCerrar = new wxButton(nuevaPestana, ID_CERRAR_CHAT, "Cerrar Chat");
-    sizerPestana->Add(btnCerrar, 0, wxALIGN_RIGHT | wxALL, 5);
+    wxButton* btnCerrar = new wxButton(nuevaPestana, ID_CERRAR_CHAT, "Cerrar");
+    wxBoxSizer* sizerBoton = new wxBoxSizer(wxHORIZONTAL);
+    sizerBoton->Add(btnCerrar, 0, wxALL, 5);
+    sizerPrincipal->Add(sizerBoton, 0, wxALIGN_RIGHT);
     
-    // Añadir la pestaña al notebook y seleccionarla
+    // Añadir la nueva pestaña al notebook
     m_notebook->AddPage(nuevaPestana, titulo, true);
     
-    // Registrar el área de chat
+    // Guardar referencias
     m_pestanasChat[titulo] = nuevaPestana;
     m_chatsPrivados[titulo] = textChat;
     
-    // Solicitar historial de mensajes
+    // Mostrar mensaje inicial
+    textChat->AppendText("Chat privado con " + titulo + "\n");
+    textChat->AppendText("--------------------------------------------------\n");
+    
+    // Solicitar historial (si es necesario)
     if (m_mensajes) {
         m_mensajes->solicitarHistorial(titulo.ToStdString());
     }

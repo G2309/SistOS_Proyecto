@@ -195,15 +195,14 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                 }
                 
 				case 55: { // Recibió mensaje
-    				// Hacer el parseo más simple y directo
     				if (len < 3) break;
     				
-    				// Análisis de la estructura del mensaje
+    				// Extraer la longitud del nombre del remitente
     				uint8_t username_len = ((uint8_t *)in)[2];
     				
     				if (3 + username_len >= len) break;
     				
-    				// Extraer el nombre de usuario
+    				// Extraer el nombre del remitente
     				std::string username((char*)in + 3, username_len);
     				
     				if (3 + username_len + 1 >= len) break;
@@ -216,7 +215,6 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
     				// Extraer el mensaje
     				std::string message((char*)in + 3 + username_len + 1, message_len);
     				
-    				// Imprimir una línea clara y simple para que la UI la procese
     				std::cout << "MENSAJE_CHAT: " << username << ": " << message << std::endl;
     				break;
 				}
