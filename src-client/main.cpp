@@ -50,6 +50,12 @@ private:
     wxNotebook* m_notebook;
     wxPanel* m_tabGeneral;
     wxStatusBar* m_barraEstado;
+	wxDateTime m_ultimaActividad;
+    bool m_escribiendo;
+    uint8_t m_estadoActual;
+	static const uint8_t ESTADO_ACTIVO = 1;
+    static const uint8_t ESTADO_OCUPADO = 2;
+    static const uint8_t ESTADO_INACTIVO = 3;
     
     // Interceptor de consola
     InterceptorConsola* m_interceptor;
@@ -84,6 +90,9 @@ private:
     void AgregarMensaje(const wxString& usuario, const wxString& mensaje, const wxString& destinatario = "General");
     wxPanel* CrearPestanaChat(const wxString& titulo);
     void ProcesarMensajeConsola(const wxString& mensaje);
+	void RegistrarActividad();
+	void OnTextChanged(wxCommandEvent& event);
+	static const int ID_TEXT_CHANGED = 1001;
     
     // ID para los eventos
     enum {
@@ -125,10 +134,14 @@ wxEND_EVENT_TABLE()
 VentanaPrincipal::VentanaPrincipal(const wxString& titulo)
     : wxFrame(nullptr, wxID_ANY, titulo, wxDefaultPosition, wxSize(900, 600)),
       m_conexion(nullptr),
+	  m_escribiendo(false),
+	  m_estadoActual(ESTADO_ACTIVO),
       m_mensajes(nullptr) {
     
     // Inicializar el interceptor de consola
     m_interceptor = new InterceptorConsola(this);
+
+	m_ultimaActividad = wxDateTime::Now();
     
     // Crear menú
     wxMenu* menuArchivo = new wxMenu;
@@ -159,7 +172,7 @@ VentanaPrincipal::VentanaPrincipal(const wxString& titulo)
     sizerConexion->Add(m_textUsuario, 1, wxALL, 5);
     
     sizerConexion->Add(new wxStaticText(panelConexion, wxID_ANY, "Servidor:"), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
-    m_textServidor = new wxTextCtrl(panelConexion, wxID_ANY, "127.0.0.1");
+    m_textServidor = new wxTextCtrl(panelConexion, wxID_ANY, "");
     sizerConexion->Add(m_textServidor, 1, wxALL, 5);
     
     sizerConexion->Add(new wxStaticText(panelConexion, wxID_ANY, "Puerto:"), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
@@ -253,6 +266,8 @@ VentanaPrincipal::VentanaPrincipal(const wxString& titulo)
     
     // Iniciar temporizador para actualizar usuarios
     m_timer = new wxTimer(this, ID_TIMER);
+
+	m_textMensaje->Bind(wxEVT_TEXT, &VentanaPrincipal::OnTextChanged, this);
     
     // Centrar la ventana
     Centre();
@@ -285,10 +300,20 @@ void VentanaPrincipal::OnMensajeConsola(wxCommandEvent& event) {
 
 void VentanaPrincipal::OnTimer(wxTimerEvent& event) {
     if (m_conexion && m_mensajes && m_conexion->estaConectado()) {
+        // Solicitar lista de usuarios cada 10 segundos
         static int contador = 0;
         if (++contador >= 20) { // 20 * 500ms = 10 segundos
             m_mensajes->solicitarListaUsuarios();
             contador = 0;
+        }
+        
+        // Comprobar inactividad (10 segundos sin actividad)
+        wxTimeSpan tiempoTranscurrido = wxDateTime::Now() - m_ultimaActividad;
+        if (tiempoTranscurrido.GetSeconds() >= 10 && m_estadoActual != ESTADO_INACTIVO && !m_escribiendo) {
+            // Cambiar a estado INACTIVO
+            m_estadoActual = ESTADO_INACTIVO;
+            m_mensajes->cambiarEstado(ESTADO_INACTIVO);
+            m_comboEstado->SetValue("INACTIVO");
         }
     } else {
         // Si perdimos la conexión, desconectar
@@ -299,6 +324,50 @@ void VentanaPrincipal::OnTimer(wxTimerEvent& event) {
     }
 }
 
+void VentanaPrincipal::RegistrarActividad() {
+    // Actualizar la hora de última actividad
+    m_ultimaActividad = wxDateTime::Now();
+    
+    // Si el estado es INACTIVO, cambiarlo a ACTIVO
+    if (m_estadoActual == ESTADO_INACTIVO && m_conexion && m_mensajes) {
+        m_estadoActual = ESTADO_ACTIVO;
+        m_mensajes->cambiarEstado(ESTADO_ACTIVO);
+        m_comboEstado->SetValue("ACTIVO");
+    }
+}
+
+void VentanaPrincipal::OnTextChanged(wxCommandEvent& event) {
+    // Registrar actividad
+    RegistrarActividad();
+    
+    // Control que generó el evento
+    wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>(event.GetEventObject());
+    if (!textCtrl) return;
+    
+    // Verificar si está vacío o no
+    bool estaEscribiendo = !textCtrl->GetValue().IsEmpty();
+    
+    // Si hay un cambio en el estado de escritura y estamos conectados
+    if (m_escribiendo != estaEscribiendo && m_conexion && m_mensajes) {
+        m_escribiendo = estaEscribiendo;
+        
+        // Si está escribiendo, cambiar a OCUPADO
+        if (m_escribiendo && m_estadoActual != ESTADO_OCUPADO) {
+            m_estadoActual = ESTADO_OCUPADO;
+            m_mensajes->cambiarEstado(ESTADO_OCUPADO);
+            m_comboEstado->SetValue("OCUPADO");
+        }
+        // Si dejó de escribir, volver a ACTIVO
+        else if (!m_escribiendo && m_estadoActual == ESTADO_OCUPADO) {
+            m_estadoActual = ESTADO_ACTIVO;
+            m_mensajes->cambiarEstado(ESTADO_ACTIVO);
+            m_comboEstado->SetValue("ACTIVO");
+        }
+    }
+    
+    // Propagar el evento
+    event.Skip();
+}
 
 void VentanaPrincipal::ProcesarMensajeConsola(const wxString& mensaje) {
     // Ignorar mensajes de depuración
@@ -597,6 +666,7 @@ void VentanaPrincipal::OnConectar(wxCommandEvent& event) {
 }
 
 void VentanaPrincipal::OnKeyDown(wxKeyEvent& event) {
+	RegistrarActividad();
     if (event.GetKeyCode() == WXK_RETURN && !event.ShiftDown()) {
         // Si se presiona Enter sin Shift, enviar mensaje
         wxCommandEvent evt(wxEVT_COMMAND_BUTTON_CLICKED, ID_ENVIAR);
@@ -608,6 +678,7 @@ void VentanaPrincipal::OnKeyDown(wxKeyEvent& event) {
 }
 
 void VentanaPrincipal::OnEnviarMensaje(wxCommandEvent& event) {
+
     if (!m_conexion || !m_mensajes) return;
     
     // Obtener la pestaña actual
@@ -621,11 +692,18 @@ void VentanaPrincipal::OnEnviarMensaje(wxCommandEvent& event) {
         // Estamos en la pestaña "General"
         mensaje = m_textMensaje->GetValue();
         destinatario = "~";  // Chat general
+		RegistrarActividad();
         
         if (mensaje.IsEmpty()) {
             wxMessageBox("El mensaje no puede estar vacío", "Error", wxICON_ERROR);
             return;
         }
+
+		if (m_estadoActual == ESTADO_OCUPADO && m_conexion && m_mensajes) {
+        	m_estadoActual = ESTADO_ACTIVO;
+        	m_mensajes->cambiarEstado(ESTADO_ACTIVO);
+        	m_comboEstado->SetValue("ACTIVO");
+    	}
         
         // Enviar al chat general
         bool exito = m_mensajes->enviarMensaje(mensaje.ToStdString());
@@ -822,13 +900,16 @@ void VentanaPrincipal::OnCambiarEstado(wxCommandEvent& event) {
     wxString estadoStr = m_comboEstado->GetValue();
     uint8_t estado = 1; // ACTIVO por defecto
     
-    if (estadoStr == "OCUPADO") {
-        estado = 2;
+	 if (estadoStr == "OCUPADO") {
+        estado = ESTADO_OCUPADO;
     } else if (estadoStr == "INACTIVO") {
-        estado = 3;
+        estado = ESTADO_INACTIVO;
     }
     
-    // Cambiar estado
+    // Actualizar estado actual
+    m_estadoActual = estado;
+    
+    // Cambiar estado en el servidor
     if (!m_mensajes->cambiarEstado(estado)) {
         wxMessageBox("Error al cambiar el estado", "Error", wxICON_ERROR);
     }
