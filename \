@@ -35,24 +35,22 @@ bool Mensajes::cambiarEstado(uint8_t nuevoEstado) {
     }
     
     // En el protocolo, debemos enviar primero el nombre del usuario
-    std::vector<uint8_t> datos;
+    std::vector<uint8_t> contenido;
     
     // Obtenemos nuestro nombre de usuario desde la conexión
-    std::string nombreUsuario = conexion->getUsuario();
+    std::string nombreUsuario = conexion->getUsuario(); // Usar el nombre de usuario de la conexión
     
     // Añadimos el nombre de usuario
-    datos.push_back(static_cast<uint8_t>(nombreUsuario.size()));
-    datos.insert(datos.end(), nombreUsuario.begin(), nombreUsuario.end());
+    contenido.push_back(static_cast<uint8_t>(nombreUsuario.size()));
+    contenido.insert(contenido.end(), nombreUsuario.begin(), nombreUsuario.end());
     
     // Añadimos el estado
-    datos.push_back(nuevoEstado);
+    contenido.push_back(nuevoEstado);
     
-    // Enviar mensaje tipo 3 (cambiar estado)
     std::vector<uint8_t> msgBinario;
     msgBinario.push_back(0x03); // Tipo 3 para cambiar estado
     
-    // NO añadir tamaño del contenido, enviamos directamente los datos
-    msgBinario.insert(msgBinario.end(), datos.begin(), datos.end());
+    msgBinario.insert(msgBinario.end(), contenido.begin(), contenido.end());
     
     return conexion->enviar(msgBinario);
 }

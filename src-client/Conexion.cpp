@@ -2,6 +2,27 @@
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include <iomanip>
+
+// Función para depurar mensajes binarios
+void debug_binary_message(uint8_t* data, size_t len) {
+    std::cout << "DEBUG - Mensaje binario (" << len << " bytes): ";
+    for (size_t i = 0; i < len; i++) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[i]) << " ";
+    }
+    std::cout << std::dec << std::endl;
+    
+    // Intentar mostrar versión ASCII para detectar cadenas
+    std::cout << "DEBUG - ASCII: ";
+    for (size_t i = 0; i < len; i++) {
+        if (isprint(data[i])) {
+            std::cout << (char)data[i];
+        } else {
+            std::cout << ".";
+        }
+    }
+    std::cout << std::endl;
+}
 
 static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason, void* user,
                             void* in, size_t len) {
@@ -19,6 +40,9 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
             uint8_t message_type = ((uint8_t *)in)[0];
             
             std::cout << "Mensaje recibido. Tipo: " << (int)message_type << "\n";
+            
+            // Depurar el mensaje completo (para todos los tipos)
+            debug_binary_message((uint8_t *)in, len);
             
             // Procesar los diferentes tipos de mensajes según el protocolo
             switch (message_type) {
@@ -40,25 +64,52 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                 }
                 
 				case 51: { // Respuesta: Listar usuarios
-    				if (len < 2) break;
-    				uint8_t user_count = ((uint8_t *)in)[1];
-    				std::cout << "Usuarios conectados (" << (int)user_count << "):\n";
+    				std::cout << "DEBUG - Decodificando mensaje tipo 51 (lista usuarios)" << std::endl;
     				
-    				size_t offset = 2; // Saltamos el tipo de mensaje (1 byte) y el conteo de usuarios (1 byte)
+    				// Señalizar inicio de lista de usuarios para limpiar la UI
+    				std::cout << "INICIO_LISTA_USUARIOS" << std::endl;
+    				
+    				// Si el mensaje es demasiado corto, terminamos
+    				if (len < 3) {
+        				std::cout << "Error: Mensaje tipo 51 demasiado corto" << std::endl;
+        				std::cout << "FIN_LISTA_USUARIOS" << std::endl;
+        				break;
+    				}
+    				
+    				// Según el formato visto en la depuración:
+    				// byte 0: tipo de mensaje (51)
+    				// byte 1: longitud de los datos (no es el número de usuarios)
+    				// byte 2: número real de usuarios
+    				uint8_t data_len = ((uint8_t *)in)[1];
+    				uint8_t user_count = ((uint8_t *)in)[2];
+    				
+    				std::cout << "Usuarios conectados (" << (int)user_count << "):" << std::endl;
+    				
+    				// Inicio de datos de usuarios (después del número de usuarios)
+    				size_t offset = 3;
+    				
+    				// Procesamos cada usuario
     				for (int i = 0; i < user_count && offset < len; i++) {
         				// Obtener longitud del nombre de usuario
         				if (offset >= len) break;
         				uint8_t username_len = ((uint8_t *)in)[offset++];
         				
         				// Verificar que hay suficientes bytes para el nombre
-        				if (offset + username_len > len) break;
+        				if (offset + username_len > len) {
+            				std::cout << "Error: No hay suficientes bytes para el nombre del usuario " << i+1 << std::endl;
+            				break;
+        				}
         				
         				// Extraer el nombre de usuario como string
         				std::string username((char*)in + offset, username_len);
         				offset += username_len;
         				
         				// Verificar que hay un byte más para el estado
-        				if (offset >= len) break;
+        				if (offset >= len) {
+            				std::cout << "Error: No hay suficientes bytes para el estado del usuario " << i+1 << std::endl;
+            				break;
+        				}
+        				
         				uint8_t status = ((uint8_t *)in)[offset++];
         				
         				// Convertir estado a texto
@@ -72,15 +123,18 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
         				}
         				
         				// Mostrar información del usuario
-        				std::cout << "- " << username << " (" << status_str << ")\n";
+        				std::cout << "- " << username << " (" << status_str << ")" << std::endl;
     				}
+    				
+    				// Señalizar fin de lista de usuarios
+    				std::cout << "FIN_LISTA_USUARIOS" << std::endl;
     				break;
 				}
                 
                 case 52: { // Respuesta: Obtener usuario por nombre
                     if (len < 2) break;
                     uint8_t username_len = ((uint8_t *)in)[1];
-					if (2 + static_cast<size_t>(username_len) >= len) break;
+                    if (2 + static_cast<size_t>(username_len) >= len) break;
                     
                     std::string username((char*)in + 2, username_len);
                     uint8_t status = ((uint8_t *)in)[2 + username_len];
@@ -101,7 +155,7 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                 case 53: { // Usuario registrado
                     if (len < 2) break;
                     uint8_t username_len = ((uint8_t *)in)[1];
-					if (2 + static_cast<size_t>(username_len) >= len) break;
+                    if (2 + static_cast<size_t>(username_len) >= len) break;
                     
                     std::string username((char*)in + 2, username_len);
                     uint8_t status = ((uint8_t *)in)[2 + username_len];
@@ -122,7 +176,7 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                 case 54: { // Usuario cambió estado
                     if (len < 2) break;
                     uint8_t username_len = ((uint8_t *)in)[1];
-					if (2 + static_cast<size_t>(username_len) >= len) break;
+                    if (2 + static_cast<size_t>(username_len) >= len) break;
                     
                     std::string username((char*)in + 2, username_len);
                     uint8_t status = ((uint8_t *)in)[2 + username_len];
@@ -143,11 +197,11 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                 case 55: { // Recibió mensaje
                     if (len < 2) break;
                     uint8_t username_len = ((uint8_t *)in)[1];
-					if (2 + static_cast<size_t>(username_len) >= len) break;
+                    if (2 + static_cast<size_t>(username_len) >= len) break;
                     
                     std::string username((char*)in + 2, username_len);
                     
-					if (2 + static_cast<size_t>(username_len) >= len) break;
+                    if (2 + static_cast<size_t>(username_len) >= len) break;
                     uint8_t message_len = ((uint8_t *)in)[2 + username_len];
                     
                     std::string message((char*)in + 2 + username_len + 1, message_len);
@@ -225,7 +279,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
     }
     // string path
     std::string path = "?name=" + username;
-	std::cout << "Path a enviar: " << path << std::endl;
+    std::cout << "Path a enviar: " << path << std::endl;
     struct lws_client_connect_info ccinfo = {};
     ccinfo.context = contexto;
     ccinfo.address = ip.c_str();
@@ -252,7 +306,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
         timeout--;
     }
 
-	if (!establecido) {
+    if (!establecido) {
         std::cerr << "Tiempo de espera agotado para establecer la conexión." << std::endl;
         cerrar();
         return false;
@@ -310,6 +364,10 @@ void Conexion::setConectado(bool estado) {
 
 void Conexion::setEstablecido(bool estado) {
     establecido = estado;
+}
+
+std::string Conexion::getUsuario() const {
+    return usuario;
 }
 
 void Conexion::escuchar() {

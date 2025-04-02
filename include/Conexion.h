@@ -31,6 +31,7 @@ public:
     
     void setConectado(bool estado);
     void setEstablecido(bool estado);
+	std::string getUsuario() const; 
 };
 
 #endif
