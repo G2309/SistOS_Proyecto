@@ -28,7 +28,12 @@ make
 
 Iniciar el servidor:
 ```sh
-./chat_server
+./chat_server &
+```
+
+Iniciar el cliente:
+```sh
+./chat_client &
 ```
 
 ## Explicación del Código
