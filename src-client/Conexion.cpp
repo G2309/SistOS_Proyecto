@@ -193,32 +193,25 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                     std::cout << "Usuario " << username << " cambió estado a " << status_str << "\n";
                     break;
                 }
-                
 				case 55: { // Recibió mensaje
+    				// Hacer el parseo más simple y directo
     				if (len < 3) break;
-    				
-    				// Extraer la longitud del nombre del remitente
+    				// Análisis de la estructura del mensaje
     				uint8_t username_len = ((uint8_t *)in)[2];
-    				
     				if (3 + username_len >= len) break;
-    				
-    				// Extraer el nombre del remitente
+    				// Extraer el nombre de usuario
     				std::string username((char*)in + 3, username_len);
-    				
     				if (3 + username_len + 1 >= len) break;
-    				
     				// Extraer la longitud del mensaje
     				uint8_t message_len = ((uint8_t *)in)[3 + username_len];
-    				
     				if (3 + username_len + 1 + message_len > len) break;
-    				
     				// Extraer el mensaje
     				std::string message((char*)in + 3 + username_len + 1, message_len);
-    				
+    				// Imprimir una línea clara y simple para que la UI la procese
     				std::cout << "MENSAJE_CHAT: " << username << ": " << message << std::endl;
     				break;
 				}
-
+                
 				case 56: { // Historial de mensajes
     				std::cout << "DEBUG - Procesando mensaje tipo 56 (historial de mensajes)" << std::endl;
     				debug_binary_message((uint8_t *)in, len);
