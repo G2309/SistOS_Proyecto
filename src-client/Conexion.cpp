@@ -194,47 +194,75 @@ static int callback_websocket(struct lws* wsi, enum lws_callback_reasons reason,
                     break;
                 }
                 
-                case 55: { // Recibió mensaje
-                    if (len < 2) break;
-                    uint8_t username_len = ((uint8_t *)in)[1];
-                    if (2 + static_cast<size_t>(username_len) >= len) break;
-                    
-                    std::string username((char*)in + 2, username_len);
-                    
-                    if (2 + static_cast<size_t>(username_len) >= len) break;
-                    uint8_t message_len = ((uint8_t *)in)[2 + username_len];
-                    
-                    std::string message((char*)in + 2 + username_len + 1, message_len);
-                    
-                    std::cout << username << ": " << message << "\n";
-                    break;
-                }
-                
-                case 56: { // Historial de mensajes
-                    if (len < 2) break;
-                    uint8_t message_count = ((uint8_t *)in)[1];
-                    std::cout << "Historial de mensajes (" << (int)message_count << " mensajes):\n";
-                    
-                    size_t offset = 2;
-                    for (int i = 0; i < message_count && offset < len; i++) {
-                        uint8_t username_len = ((uint8_t *)in)[offset++];
-                        if (offset + username_len >= len) break;
-                        
-                        std::string username((char*)in + offset, username_len);
-                        offset += username_len;
-                        
-                        if (offset >= len) break;
-                        uint8_t message_len = ((uint8_t *)in)[offset++];
-                        if (offset + message_len > len) break;
-                        
-                        std::string message((char*)in + offset, message_len);
-                        offset += message_len;
-                        
-                        std::cout << username << ": " << message << "\n";
-                    }
-                    break;
-                }
-                
+				case 55: { // Recibió mensaje
+    				// Hacer el parseo más simple y directo
+    				if (len < 3) break;
+    				
+    				// Análisis de la estructura del mensaje
+    				uint8_t username_len = ((uint8_t *)in)[2];
+    				
+    				if (3 + username_len >= len) break;
+    				
+    				// Extraer el nombre de usuario
+    				std::string username((char*)in + 3, username_len);
+    				
+    				if (3 + username_len + 1 >= len) break;
+    				
+    				// Extraer la longitud del mensaje
+    				uint8_t message_len = ((uint8_t *)in)[3 + username_len];
+    				
+    				if (3 + username_len + 1 + message_len > len) break;
+    				
+    				// Extraer el mensaje
+    				std::string message((char*)in + 3 + username_len + 1, message_len);
+    				
+    				// Imprimir una línea clara y simple para que la UI la procese
+    				std::cout << "MENSAJE_CHAT: " << username << ": " << message << std::endl;
+    				break;
+				}
+
+				case 56: { // Historial de mensajes
+    				std::cout << "DEBUG - Procesando mensaje tipo 56 (historial de mensajes)" << std::endl;
+    				debug_binary_message((uint8_t *)in, len);
+    				
+    				if (len < 2) break;
+    				uint8_t message_count = ((uint8_t *)in)[1];
+    				std::cout << "Historial de mensajes (" << (int)message_count << " mensajes):\n";
+    				
+    				size_t offset = 2;
+    				for (int i = 0; i < message_count && offset < len; i++) {
+        				if (offset >= len) break;
+        				uint8_t username_len = ((uint8_t *)in)[offset++];
+        				
+        				if (offset + username_len > len) {
+            				std::cout << "ERROR - Historial: datos insuficientes para el nombre de usuario" << std::endl;
+            				break;
+        				}
+        				
+        				std::string username((char*)in + offset, username_len);
+        				offset += username_len;
+        				
+        				if (offset >= len) {
+            				std::cout << "ERROR - Historial: datos insuficientes para la longitud del mensaje" << std::endl;
+            				break;
+        				}
+        				
+        				uint8_t message_len = ((uint8_t *)in)[offset++];
+        				
+        				if (offset + message_len > len) {
+            				std::cout << "ERROR - Historial: datos insuficientes para el contenido del mensaje" << std::endl;
+            				break;
+        				}
+        				
+        				std::string message((char*)in + offset, message_len);
+        				offset += message_len;
+        				
+        				// Mostrar información detallada
+        				std::cout << "HISTORIAL: " << username << ": " << message << "\n";
+    				}
+    				break;
+				}
+                				
                 default:
                     std::cout << "Mensaje de tipo desconocido: " << (int)message_type << "\n";
             }
