@@ -425,14 +425,29 @@ void VentanaPrincipal::OnConectar(wxCommandEvent& event) {
         
         // Mostrar mensaje de intento de conexión
         SetStatusText("Conectando...");
+        m_textChat->AppendText("Intentando conectar a " + servidor + ":" + wxString::Format("%ld", puerto) + "...\n");
         
         // Crear conexión
         m_conexion = new Conexion();
-        if (!m_conexion->conectar(servidor.ToStdString(), puerto, usuario.ToStdString())) {
-            wxMessageBox("No se pudo conectar al servidor", "Error", wxICON_ERROR);
+        
+        // Intentar conectar
+        bool conectado = m_conexion->conectar(servidor.ToStdString(), puerto, usuario.ToStdString());
+        
+        if (!conectado) {
+            wxMessageBox("No se pudo conectar al servidor. Asegúrate que el servidor esté en ejecución y que la dirección y puerto sean correctos.", "Error de conexión", wxICON_ERROR);
             SetStatusText("Error de conexión");
+            
+            // Limpieza
             delete m_conexion;
             m_conexion = nullptr;
+            
+            m_textChat->AppendText("Error de conexión. Posibles causas:\n");
+            m_textChat->AppendText("- El servidor no está en ejecución\n");
+            m_textChat->AppendText("- La dirección o puerto son incorrectos\n");
+            m_textChat->AppendText("- Hay un firewall bloqueando la conexión\n");
+            m_textChat->AppendText("- El servidor rechazó la conexión\n\n");
+            m_textChat->AppendText("Verifica que el servidor (chat_server) esté ejecutándose.\n");
+            
             return;
         }
         
@@ -454,7 +469,7 @@ void VentanaPrincipal::OnConectar(wxCommandEvent& event) {
         m_textPuerto->Disable();
         
         // Iniciar temporizador
-        m_timer->Start(100);
+        m_timer->Start(500);  // Reducir la frecuencia a 500ms (era 100ms)
         
         // Mostrar mensaje de conexión exitosa
         m_textChat->AppendText("Conectado al servidor como " + usuario + "\n");

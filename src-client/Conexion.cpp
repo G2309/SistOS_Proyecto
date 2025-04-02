@@ -224,7 +224,7 @@ bool Conexion::conectar(const std::string& ip, int puerto, const std::string& us
         return false;
     }
     // string path
-    std::string path = "/?name=" + username;
+    std::string path = "?name=" + username;
 	std::cout << "Path a enviar: " << path << std::endl;
     struct lws_client_connect_info ccinfo = {};
     ccinfo.context = contexto;
