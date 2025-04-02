@@ -1,6 +1,10 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -Iinclude
-LDFLAGS = -lwebsockets
+LDFLAGS = -lwebsockets -pthread
+
+# Banderas para wxWidgets
+WXCXXFLAGS := $(shell wx-config --cxxflags)
+WXLIBS := $(shell wx-config --libs)
 
 SRC_DIR_SERVER = src
 SRC_DIR_CLIENT = src-client
@@ -9,7 +13,6 @@ INCLUDE_DIR = include
 
 SRCS_SERVER = $(wildcard $(SRC_DIR_SERVER)/*.cpp)
 SRCS_CLIENT = $(wildcard $(SRC_DIR_CLIENT)/*.cpp)
-
 OBJS_SERVER = $(patsubst $(SRC_DIR_SERVER)/%.cpp,$(BUILD_DIR)/server_%.o,$(SRCS_SERVER))
 OBJS_CLIENT = $(patsubst $(SRC_DIR_CLIENT)/%.cpp,$(BUILD_DIR)/client_%.o,$(SRCS_CLIENT))
 
@@ -28,13 +31,13 @@ $(BUILD_DIR)/server_%.o: $(SRC_DIR_SERVER)/%.cpp
 # Compilar objetos para chat_client
 $(BUILD_DIR)/client_%.o: $(SRC_DIR_CLIENT)/%.cpp
 	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(WXCXXFLAGS) -c $< -o $@
 
 $(TARGET_SERVER): $(OBJS_SERVER)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(TARGET_CLIENT): $(OBJS_CLIENT)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(WXLIBS)
 
 run_server: $(TARGET_SERVER)
 	./$(TARGET_SERVER)
@@ -44,4 +47,3 @@ run_client: $(TARGET_CLIENT)
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET_SERVER) $(TARGET_CLIENT)
-
